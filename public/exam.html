@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gincana Online | Prova</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body class="exam-page">
+    <main class="exam-shell">
+      <header class="exam-header">
+        <p class="eyebrow">Gincana Online</p>
+        <h1 id="exam-title">Carregando prova...</h1>
+        <p id="exam-description"></p>
+      </header>
+
+      <section id="start-view" class="start-panel hidden">
+        <form id="start-form" class="stacked-form">
+          <label>
+            Nome
+            <input id="participant-name" type="text" autocomplete="name" required />
+          </label>
+          <label>
+            Grupo
+            <select id="participant-group" required>
+              <option value="">Selecione</option>
+              <option value="Meninos">Meninos</option>
+              <option value="Meninas">Meninas</option>
+            </select>
+          </label>
+          <label class="inline-check">
+            <input id="fullscreen-option" type="checkbox" />
+            Iniciar em tela cheia
+          </label>
+          <p class="notice">
+            Sair da aba, perder foco da janela, copiar, colar ou abrir o menu do botão direito
+            pode ser registrado durante a prova.
+          </p>
+          <button type="submit" class="primary-button">Começar prova</button>
+        </form>
+      </section>
+
+      <section id="exam-view" class="hidden">
+        <div class="exam-progress" aria-live="polite">
+          <div class="progress-meta">
+            <span id="progress-label">Pergunta 1 de 1</span>
+            <span id="progress-percent">0%</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
+        <div id="warning-banner" class="warning-banner hidden"></div>
+        <form id="public-exam-form">
+          <div id="questions-view" class="public-questions"></div>
+          <div class="exam-nav">
+            <button id="prev-question-button" type="button" class="ghost-button">Voltar</button>
+            <span></span>
+            <button id="next-question-button" type="button" class="primary-button">Próxima</button>
+            <button id="submit-exam-button" type="submit" class="primary-button submit-exam-button hidden">
+              Enviar respostas
+            </button>
+          </div>
+          <p id="exam-message" class="form-message"></p>
+        </form>
+      </section>
+
+      <section id="success-view" class="success-panel hidden">
+        <div id="confetti-layer" class="confetti-layer" aria-hidden="true"></div>
+        <div class="celebration-card">
+          <div class="celebration-mark">✓</div>
+          <h2>Parabéns!</h2>
+          <p>Resposta enviada com sucesso.</p>
+          <div class="success-meta">
+            <div class="success-stat">
+              <span>Nome</span>
+              <strong id="success-name">Participante</strong>
+            </div>
+            <div class="success-stat">
+              <span>Grupo</span>
+              <strong id="success-group">Grupo</strong>
+            </div>
+            <div class="success-stat">
+              <span>Pontuação final</span>
+              <strong id="success-score">0</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="error-view" class="error-panel hidden">
+        <h2>Não foi possível abrir a prova.</h2>
+        <p id="error-message"></p>
+      </section>
+    </main>
+
+    <script src="/assets/exam.js"></script>
+  </body>
+</html>

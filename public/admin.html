@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gincana Online | ADM</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body class="admin-page">
+    <main class="admin-shell">
+      <section id="login-view" class="login-panel">
+        <p class="eyebrow">Gincana Online</p>
+        <h1>Painel ADM</h1>
+        <form id="login-form" class="stacked-form">
+          <label>
+            Senha
+            <input id="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="primary-button">Entrar</button>
+          <p id="login-message" class="form-message"></p>
+        </form>
+      </section>
+
+      <section id="admin-view" class="hidden">
+        <header class="admin-header">
+          <div>
+            <p class="eyebrow">Gincana Online</p>
+            <h1>Painel ADM</h1>
+          </div>
+          <button id="logout-button" class="ghost-button">Sair</button>
+        </header>
+
+        <nav class="tabs" aria-label="Áreas do painel">
+          <button class="tab active" data-tab="scores">Pontuação</button>
+          <button class="tab" data-tab="exams">Provas</button>
+        </nav>
+
+        <section id="tab-scores" class="tab-panel active">
+          <div class="panel-heading">
+            <div>
+              <h2>Pontuação manual</h2>
+              <p>Os valores salvos aparecem automaticamente na tela pública.</p>
+            </div>
+            <a class="ghost-link" href="/" target="_blank">Abrir placar</a>
+          </div>
+
+          <form id="scores-form" class="score-form">
+            <label>
+              Meninos
+              <input id="score-boys" type="number" min="0" step="1" required />
+            </label>
+            <label>
+              Meninas
+              <input id="score-girls" type="number" min="0" step="1" required />
+            </label>
+            <button type="submit" class="primary-button">Salvar pontuação</button>
+          </form>
+          <p id="scores-message" class="form-message"></p>
+        </section>
+
+        <section id="tab-exams" class="tab-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Provas online</h2>
+              <p>Crie provas com link público individual.</p>
+            </div>
+            <button id="new-exam-button" class="secondary-button">+ Nova prova</button>
+          </div>
+
+          <div class="exam-workspace">
+            <aside class="exam-list-panel">
+              <h3>Provas criadas</h3>
+              <div id="exam-list" class="exam-list"></div>
+            </aside>
+
+            <form id="exam-form" class="exam-editor">
+              <input id="exam-id" type="hidden" />
+              <label>
+                Título
+                <input id="exam-title" type="text" required />
+              </label>
+              <label>
+                Descrição
+                <textarea id="exam-description" rows="3"></textarea>
+              </label>
+              <label class="inline-check">
+                <input id="exam-active" type="checkbox" checked />
+                Prova ativa
+              </label>
+
+              <div class="editor-bar">
+                <h3>Questões</h3>
+                <button id="add-question-button" type="button" class="secondary-button">
+                  + Adicionar questão
+                </button>
+              </div>
+
+              <div id="questions-editor" class="questions-editor"></div>
+
+              <div class="form-actions">
+                <button type="submit" class="primary-button">Salvar prova</button>
+                <button id="delete-exam-button" type="button" class="danger-button hidden">
+                  Apagar prova
+                </button>
+              </div>
+              <p id="exam-message" class="form-message"></p>
+            </form>
+
+            <section id="exam-responses-panel" class="exam-responses-panel hidden">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Respostas</p>
+                  <h2>Respostas desta prova</h2>
+                  <p id="exam-responses-subtitle">Selecione uma prova para ver os envios.</p>
+                </div>
+                <button id="refresh-exam-responses-button" type="button" class="secondary-button">
+                  Atualizar
+                </button>
+              </div>
+
+              <div class="exam-response-summary">
+                <div class="response-stat">
+                  <span>Total de respostas</span>
+                  <strong id="exam-response-total">0</strong>
+                </div>
+                <div class="response-stat boys">
+                  <span>Pontos Meninos</span>
+                  <strong id="exam-response-boys">0</strong>
+                </div>
+                <div class="response-stat girls">
+                  <span>Pontos Meninas</span>
+                  <strong id="exam-response-girls">0</strong>
+                </div>
+                <div class="response-stat">
+                  <span>Média</span>
+                  <strong id="exam-response-average">0</strong>
+                </div>
+              </div>
+
+              <div class="group-responses-grid">
+                <section class="group-response-card girls">
+                  <h3>Meninas</h3>
+                  <div id="girls-responses-list" class="participant-list"></div>
+                </section>
+                <section class="group-response-card boys">
+                  <h3>Meninos</h3>
+                  <div id="boys-responses-list" class="participant-list"></div>
+                </section>
+              </div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="submission-dialog" class="details-dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Detalhes</p>
+          <h2 id="detail-title">Resposta</h2>
+        </div>
+        <button id="close-dialog-button" class="ghost-button">Fechar</button>
+      </div>
+      <div id="submission-detail"></div>
+    </dialog>
+
+    <script src="/assets/admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gincana Online | Pontuação</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body class="score-page">
+    <main class="score-shell">
+      <header class="score-header">
+        <div>
+          <p class="eyebrow">Gincana Online</p>
+          <h1>Pontuação ao vivo</h1>
+        </div>
+        <a class="admin-shortcut" href="/admin">ADM</a>
+      </header>
+
+      <section class="score-grid" aria-live="polite">
+        <article class="team-card team-boys">
+          <div class="team-topline">
+            <span>Meninos</span>
+            <strong id="boys-score">0</strong>
+          </div>
+          <div class="meter" aria-label="Porcentagem dos Meninos">
+            <div id="boys-fill" class="meter-fill"></div>
+          </div>
+          <p id="boys-percent" class="percentage">0% do total</p>
+        </article>
+
+        <article class="team-card team-girls">
+          <div class="team-topline">
+            <span>Meninas</span>
+            <strong id="girls-score">0</strong>
+          </div>
+          <div class="meter" aria-label="Porcentagem das Meninas">
+            <div id="girls-fill" class="meter-fill"></div>
+          </div>
+          <p id="girls-percent" class="percentage">0% do total</p>
+        </article>
+      </section>
+
+      <footer class="score-footer">
+        <span id="last-update">Atualizando...</span>
+      </footer>
+    </main>
+
+    <script src="/assets/score.js"></script>
+  </body>
+</html>
