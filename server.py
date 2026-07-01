@@ -25,8 +25,34 @@ except ImportError:  # pragma: no cover - handled at runtime with a clear messag
 
 
 ROOT = Path(__file__).resolve().parent
-PUBLIC_DIR = ROOT / "public"
-SCHEMA_PATH = ROOT / "supabase" / "schema.sql"
+
+
+def project_root_candidates():
+    candidates = [ROOT, Path.cwd().resolve()]
+    candidates.extend(ROOT.parents)
+
+    unique = []
+    for candidate in candidates:
+        if candidate not in unique:
+            unique.append(candidate)
+    return unique
+
+
+def find_project_dir(dirname, marker_file):
+    for base in project_root_candidates():
+        candidate = (base / dirname).resolve()
+        if candidate.is_dir() and (candidate / marker_file).is_file():
+            return candidate
+    return (ROOT / dirname).resolve()
+
+
+def find_project_file(dirname, filename):
+    directory = find_project_dir(dirname, filename)
+    return directory / filename
+
+
+PUBLIC_DIR = find_project_dir("public", "index.html")
+SCHEMA_PATH = find_project_file("supabase", "schema.sql")
 
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8000"))
@@ -337,11 +363,11 @@ class Handler(BaseHTTPRequestHandler):
                 return
             return self.handle_get_submission_detail(int(match.group(1)))
 
-        if path == "/":
+        if path in {"/", "/index.html"}:
             return self.serve_file(PUBLIC_DIR / "index.html")
-        if path == "/admin":
+        if path in {"/admin", "/admin.html"}:
             return self.serve_file(PUBLIC_DIR / "admin.html")
-        if path.startswith("/prova/"):
+        if path.startswith(("/prova/", "/exam/")):
             return self.serve_file(PUBLIC_DIR / "exam.html")
 
         safe_path = (PUBLIC_DIR / path.lstrip("/")).resolve()
@@ -449,6 +475,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def serve_file(self, path):
         if not path.exists():
+            print(
+                f"[{now_iso()}] Arquivo estático não encontrado: {path} "
+                f"(PUBLIC_DIR={PUBLIC_DIR}, cwd={Path.cwd()})",
+                file=sys.stderr,
+            )
             return self.send_error_json(404, "Arquivo não encontrado.")
         mime, _ = mimetypes.guess_type(path)
         body = path.read_bytes()
@@ -542,7 +573,7 @@ class Handler(BaseHTTPRequestHandler):
                     "questions": load_json_value(row["questions_json"], []),
                     "createdAt": serialize_datetime(row["created_at"]),
                     "updatedAt": serialize_datetime(row["updated_at"]),
-                    "publicUrl": f"/prova/{row['slug']}",
+                    "publicUrl": f"/exam/{row['slug']}",
                     "submissionsCount": row["submissions_count"],
                     "totals": {
                         "Meninos": number_value(row["boys_score"]),
