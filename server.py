@@ -5,6 +5,8 @@ import json
 import mimetypes
 import os
 import re
+import sys
+import traceback
 import uuid
 from datetime import datetime, timezone
 from http import cookies
@@ -37,6 +39,8 @@ SESSION_COOKIE = "gincana_session"
 
 GROUPS = ("Meninos", "Meninas")
 QUESTION_TYPES = {"single", "multi", "short", "long"}
+DB_READY = False
+DB_INIT_ERROR = None
 
 
 def now_iso():
@@ -48,7 +52,7 @@ def connect_db():
         raise RuntimeError("Instale as dependências com: pip install -r requirements.txt")
     if not DATABASE_URL:
         raise RuntimeError("Defina DATABASE_URL para conectar ao PostgreSQL/Supabase.")
-    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row, connect_timeout=10)
 
 
 def load_json_value(value, fallback):
@@ -83,6 +87,46 @@ def init_db():
                 """,
                 (group, now_iso()),
             )
+
+
+def log_exception(context, exc):
+    print(
+        f"[{now_iso()}] {context}: {exc.__class__.__name__}: {exc}",
+        file=sys.stderr,
+    )
+    traceback.print_exc()
+
+
+def ensure_db_ready():
+    global DB_READY, DB_INIT_ERROR
+
+    if DB_READY:
+        return True
+
+    try:
+        init_db()
+    except Exception as exc:  # pragma: no cover - depends on deployed DB/network.
+        DB_READY = False
+        DB_INIT_ERROR = exc
+        log_exception("Falha ao inicializar o banco de dados", exc)
+        return False
+
+    DB_READY = True
+    DB_INIT_ERROR = None
+    print(f"[{now_iso()}] Banco de dados inicializado.", file=sys.stderr)
+    return True
+
+
+def db_error_payload():
+    detail = ""
+    if DB_INIT_ERROR is not None:
+        detail = f"{DB_INIT_ERROR.__class__.__name__}: {DB_INIT_ERROR}"
+
+    return {
+        "error": "Banco de dados indisponível.",
+        "details": detail,
+        "hint": "Na Vercel, use a connection string do Supabase Pooler em DATABASE_URL.",
+    }
 
 
 def session_token():
@@ -224,6 +268,30 @@ def score_submission(questions, answers):
 class Handler(BaseHTTPRequestHandler):
     server_version = "GincanaOnline/1.0"
 
+    def handle_one_request(self):
+        try:
+            return super().handle_one_request()
+        except Exception as exc:  # pragma: no cover - safety net for serverless logs.
+            path = getattr(self, "path", "")
+            method = getattr(self, "command", "")
+            log_exception(f"Erro não tratado na request {method} {path}", exc)
+            try:
+                self.send_json(
+                    {
+                        "error": "Erro interno no servidor.",
+                        "details": f"{exc.__class__.__name__}: {exc}",
+                    },
+                    status=500,
+                )
+            except Exception:
+                pass
+
+    def require_database(self):
+        if ensure_db_ready():
+            return True
+        self.send_json(db_error_payload(), status=503)
+        return False
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = unquote(parsed.path)
@@ -232,6 +300,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"authenticated": self.is_authenticated()})
 
         if path == "/api/scores":
+            if not self.require_database():
+                return
             return self.handle_get_scores()
 
         if path == "/favicon.ico":
@@ -240,22 +310,30 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/api/public/exams/"):
+            if not self.require_database():
+                return
             slug = path.removeprefix("/api/public/exams/").strip("/")
             return self.handle_get_public_exam(slug)
 
         if path == "/api/admin/exams":
             if not self.require_auth():
                 return
+            if not self.require_database():
+                return
             return self.handle_get_admin_exams()
 
         if path == "/api/admin/submissions":
             if not self.require_auth():
+                return
+            if not self.require_database():
                 return
             return self.handle_get_submissions(parse_qs(parsed.query))
 
         match = re.fullmatch(r"/api/admin/submissions/(\d+)", path)
         if match:
             if not self.require_auth():
+                return
+            if not self.require_database():
                 return
             return self.handle_get_submission_detail(int(match.group(1)))
 
@@ -285,10 +363,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/exams":
             if not self.require_auth():
                 return
+            if not self.require_database():
+                return
             return self.handle_save_exam()
 
         match = re.fullmatch(r"/api/public/exams/([^/]+)/submissions", path)
         if match:
+            if not self.require_database():
+                return
             return self.handle_submit_exam(match.group(1))
 
         return self.send_error_json(404, "Rota não encontrada.")
@@ -300,11 +382,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/scores":
             if not self.require_auth():
                 return
+            if not self.require_database():
+                return
             return self.handle_update_scores()
 
         match = re.fullmatch(r"/api/admin/exams/(\d+)", path)
         if match:
             if not self.require_auth():
+                return
+            if not self.require_database():
                 return
             return self.handle_save_exam(int(match.group(1)))
 
@@ -316,6 +402,8 @@ class Handler(BaseHTTPRequestHandler):
         match = re.fullmatch(r"/api/admin/exams/(\d+)", path)
         if match:
             if not self.require_auth():
+                return
+            if not self.require_database():
                 return
             return self.handle_delete_exam(int(match.group(1)))
         return self.send_error_json(404, "Rota não encontrada.")
@@ -699,11 +787,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    init_db()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"Gincana Online rodando em http://{HOST}:{PORT}")
     print(f"ADM: http://{HOST}:{PORT}/admin")
     print("Senha ADM configurada por ADMIN_PASSWORD.")
+    print("Banco de dados será inicializado na primeira request que usa dados.")
     server.serve_forever()
 
 

@@ -6,10 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from server import Handler, init_db  # noqa: E402
-
-
-init_db()
+from server import Handler  # noqa: E402
 
 
 class handler(Handler):

@@ -24,7 +24,9 @@ export SUPABASE_ANON_KEY="..."
 export ADMIN_PASSWORD="sua-senha-adm"
 ```
 
-Não versione `.env` com credenciais reais. O backend usa `DATABASE_URL` para conectar diretamente ao PostgreSQL; `SUPABASE_URL` e `SUPABASE_ANON_KEY` ficam disponíveis para evoluções futuras com APIs públicas do Supabase.
+Não versione `.env` com credenciais reais. O backend usa `DATABASE_URL` para conectar ao PostgreSQL; `SUPABASE_URL` e `SUPABASE_ANON_KEY` ficam disponíveis para evoluções futuras com APIs públicas do Supabase.
+
+Na Vercel, use em `DATABASE_URL` a connection string do **Supabase Pooler** (IPv4/Transaction Pooler ou Session Pooler), não a string **Direct connection** IPv6. Em funções serverless, a conexão direta IPv6 pode falhar com erros como `Cannot assign requested address`.
 
 ## Como rodar localmente
 
@@ -51,7 +53,7 @@ O projeto usa Supabase/PostgreSQL. O schema fica em:
 supabase/schema.sql
 ```
 
-Ao iniciar, o backend executa o schema automaticamente com `CREATE TABLE IF NOT EXISTS` e garante os registros iniciais do placar para `Meninos` e `Meninas`.
+Na primeira request que usa o banco, o backend executa o schema automaticamente com `CREATE TABLE IF NOT EXISTS` e garante os registros iniciais do placar para `Meninos` e `Meninas`.
 
 ## Deploy na Vercel
 
@@ -68,7 +70,9 @@ Na Vercel, configure as mesmas variáveis de ambiente:
 - `SUPABASE_ANON_KEY`
 - `ADMIN_PASSWORD`
 
-Depois faça o deploy normalmente. O `vercel.json` roteia todas as URLs para `api/index.py`, que reutiliza o mesmo backend do servidor local.
+Em `DATABASE_URL`, cole a URL do Supabase em **Project Settings > Database > Connection string > Pooler**. Evite a URL Direct connection na Vercel.
+
+Depois faça o deploy normalmente. O `vercel.json` roteia todas as URLs para `api/index.py`, que reutiliza o mesmo backend do servidor local. O import da função não abre conexão com o banco; a inicialização acontece de forma lazy dentro da primeira rota que precisa de dados.
 
 ## O que está no MVP
 
