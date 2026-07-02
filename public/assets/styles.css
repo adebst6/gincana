@@ -1058,6 +1058,152 @@ label {
   justify-content: space-between;
 }
 
+.participant-actions,
+.dialog-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.participant-delete-button {
+  min-height: 38px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.monitoring-detail {
+  border-top: 1px solid var(--line);
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.monitoring-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.monitoring-detail-heading h3,
+.monitoring-detail-heading p {
+  margin-bottom: 0;
+}
+
+.monitoring-detail-heading > span {
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.monitoring-consent-time {
+  margin: 0.45rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.monitoring-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.monitoring-photo {
+  margin: 0;
+}
+
+.monitoring-photo img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: block;
+  object-fit: cover;
+  background: var(--surface-soft);
+}
+
+.monitoring-photo figcaption {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.camera-consent-panel {
+  border: 1px solid #cfe3fb;
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+  background: var(--blue-soft);
+}
+
+.camera-consent-panel p {
+  margin: 0.3rem 0 0;
+  color: var(--blue-dark);
+  font-size: 0.88rem;
+}
+
+.camera-consent-check {
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.camera-monitoring-status {
+  margin: 0.75rem 0;
+  border: 1px solid #cfe3fb;
+  border-radius: var(--radius-md);
+  padding: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+}
+
+.camera-monitoring-status video {
+  width: 96px;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  display: block;
+  object-fit: cover;
+  background: #dfe5ec;
+  transform: scaleX(-1);
+}
+
+.camera-monitoring-status > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.camera-monitoring-status strong {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+#camera-snapshot-count {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.camera-live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: cardPulse 1.6s ease-in-out infinite;
+}
+
+.camera-monitoring-status.stopped .camera-live-dot {
+  background: var(--muted);
+  animation: none;
+}
+
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
@@ -1540,6 +1686,25 @@ body.exam-active select {
   .dialog-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .dialog-heading-actions,
+  .participant-actions {
+    width: 100%;
+  }
+
+  .monitoring-detail-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .camera-monitoring-status video {
+    width: 76px;
+  }
+
+  .dialog-heading-actions button,
+  .participant-actions button {
+    flex: 1;
   }
 
   .score-header-actions,

@@ -30,6 +30,7 @@ const detailExamStatus = document.querySelector("#detail-exam-status");
 const detailExamQuestions = document.querySelector("#detail-exam-questions");
 const detailExamResponses = document.querySelector("#detail-exam-responses");
 const detailExamTime = document.querySelector("#detail-exam-time");
+const detailExamCamera = document.querySelector("#detail-exam-camera");
 const detailExamBoys = document.querySelector("#detail-exam-boys");
 const detailExamGirls = document.querySelector("#detail-exam-girls");
 const detailPublicLink = document.querySelector("#detail-public-link");
@@ -44,6 +45,9 @@ const examTitle = document.querySelector("#exam-title");
 const examDescription = document.querySelector("#exam-description");
 const examActive = document.querySelector("#exam-active");
 const examTimeLimit = document.querySelector("#exam-time-limit");
+const examCameraMonitoring = document.querySelector("#exam-camera-monitoring");
+const examCameraIntervalField = document.querySelector("#exam-camera-interval-field");
+const examCameraInterval = document.querySelector("#exam-camera-interval");
 const questionsEditor = document.querySelector("#questions-editor");
 const addQuestionButton = document.querySelector("#add-question-button");
 const deleteExamButton = document.querySelector("#delete-exam-button");
@@ -64,6 +68,7 @@ const boysResponsesList = document.querySelector("#boys-responses-list");
 
 const dialog = document.querySelector("#submission-dialog");
 const closeDialogButton = document.querySelector("#close-dialog-button");
+const deleteSubmissionButton = document.querySelector("#delete-submission-button");
 const detailTitle = document.querySelector("#detail-title");
 const submissionDetail = document.querySelector("#submission-detail");
 
@@ -88,6 +93,7 @@ const state = {
 const ADMIN_PASSWORD = "gincana123";
 const ADMIN_SESSION_KEY = "gincana_admin_session";
 let toastTimer = null;
+let openedSubmissionId = "";
 
 function uid() {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -328,6 +334,8 @@ function resetExamForm() {
     description: "",
     active: true,
     timeLimitMinutes: 0,
+    cameraMonitoring: false,
+    cameraIntervalSeconds: 60,
     questions: [defaultQuestion()],
   };
   state.currentExamSubmissions = [];
@@ -364,6 +372,7 @@ function renderExamList() {
               <span>${exam.questions.length} ${exam.questions.length === 1 ? "pergunta" : "perguntas"}</span>
               <span>${exam.submissionsCount} ${exam.submissionsCount === 1 ? "resposta" : "respostas"}</span>
               <span>${exam.timeLimitMinutes > 0 ? `${exam.timeLimitMinutes} min` : "Sem limite"}</span>
+              <span>${exam.cameraMonitoring ? `Fotos a cada ${exam.cameraIntervalSeconds}s` : "Sem fotos"}</span>
             </div>
           </button>
           <div class="exam-item-actions">
@@ -387,6 +396,9 @@ function renderExamDetail() {
   detailExamQuestions.textContent = String(exam.questions.length);
   detailExamResponses.textContent = String(exam.submissionsCount || 0);
   detailExamTime.textContent = exam.timeLimitMinutes > 0 ? `${exam.timeLimitMinutes} min` : "Sem limite";
+  detailExamCamera.textContent = exam.cameraMonitoring
+    ? `A cada ${exam.cameraIntervalSeconds}s`
+    : "Desativado";
   detailExamBoys.textContent = formatNumber(exam.totals.Meninos);
   detailExamGirls.textContent = formatNumber(exam.totals.Meninas);
   detailPublicLink.value = absolutePublicUrl(exam);
@@ -415,8 +427,17 @@ function renderExamForm() {
   examDescription.value = exam.description || "";
   examActive.checked = exam.active !== false;
   examTimeLimit.value = exam.timeLimitMinutes || 0;
+  examCameraMonitoring.checked = exam.cameraMonitoring === true;
+  examCameraInterval.value = String(exam.cameraIntervalSeconds || 60);
+  syncCameraSettings();
   deleteExamButton.classList.toggle("hidden", !exam.id);
   renderQuestions();
+}
+
+function syncCameraSettings() {
+  const enabled = examCameraMonitoring.checked;
+  examCameraIntervalField.classList.toggle("hidden", !enabled);
+  examCameraInterval.disabled = !enabled;
 }
 
 function renderQuestions() {
@@ -574,6 +595,8 @@ function collectExamForm() {
     description: examDescription.value,
     active: examActive.checked,
     timeLimitMinutes: Math.max(0, Math.floor(Number(examTimeLimit.value || 0))),
+    cameraMonitoring: examCameraMonitoring.checked,
+    cameraIntervalSeconds: Number(examCameraInterval.value || 60),
     questions,
   };
 }
@@ -730,6 +753,8 @@ async function saveExam(event) {
       description: state.currentExam.description.trim(),
       active: state.currentExam.active,
       timeLimitMinutes: state.currentExam.timeLimitMinutes,
+      cameraMonitoring: state.currentExam.cameraMonitoring,
+      cameraIntervalSeconds: state.currentExam.cameraIntervalSeconds,
       questions: state.currentExam.questions.map(sanitizeQuestion),
     };
     const savedExam = await GincanaDB.saveExam({ id: state.currentExam.id, ...payload });
@@ -830,7 +855,10 @@ function renderGroupResponses(container, group, submissions) {
           <div class="participant-score-row">
             <span>Pontos: <strong>${formatNumber(submission.autoScore)}</strong></span>
             <span>Saídas: <strong>${submission.focusLosses}</strong></span>
-            <button type="button" class="small-button" data-action="open-submission" data-id="${submission.id}">Ver detalhes</button>
+            <div class="participant-actions">
+              <button type="button" class="small-button" data-action="open-submission" data-id="${submission.id}">Ver detalhes</button>
+              <button type="button" class="danger-button participant-delete-button" data-action="delete-submission" data-id="${submission.id}">Excluir</button>
+            </div>
           </div>
         </article>
       `
@@ -873,8 +901,54 @@ function hasAutomaticCorrectAnswer(question) {
   );
 }
 
+function validMonitoringSnapshots(submission) {
+  return (submission.monitoringSnapshots || []).filter((snapshot) => {
+    const image = String(snapshot?.image || "");
+    return image.startsWith("data:image/jpeg;base64,") || image.startsWith("data:image/png;base64,");
+  });
+}
+
+function renderMonitoringGallery(submission) {
+  const snapshots = validMonitoringSnapshots(submission);
+  if (!submission.cameraConsentAt && !snapshots.length) return "";
+
+  return `
+    <section class="monitoring-detail">
+      <div class="monitoring-detail-heading">
+        <div>
+          <p class="eyebrow">Monitoramento</p>
+          <h3>Fotos durante a prova</h3>
+        </div>
+        <span>${snapshots.length} ${snapshots.length === 1 ? "foto" : "fotos"}</span>
+      </div>
+      ${
+        submission.cameraConsentAt
+          ? `<p class="monitoring-consent-time">Consentimento registrado em ${new Date(submission.cameraConsentAt).toLocaleString("pt-BR")}.</p>`
+          : ""
+      }
+      <div class="monitoring-gallery">
+        ${snapshots
+          .map(
+            (snapshot, index) => `
+              <figure class="monitoring-photo">
+                <img src="${escapeHtml(snapshot.image)}" alt="Foto de monitoramento ${index + 1}" loading="lazy" />
+                <figcaption>
+                  ${new Date(snapshot.capturedAt).toLocaleString("pt-BR")}
+                  ${snapshot.kind === "start" ? " · Início" : snapshot.kind === "final" ? " · Final" : ""}
+                </figcaption>
+              </figure>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
 async function openSubmission(id) {
   const submission = await GincanaDB.getSubmission(id);
+  openedSubmissionId = submission.id;
+  deleteSubmissionButton.dataset.id = submission.id;
   submission.examTitle = state.currentExam?.title || "Prova";
   detailTitle.textContent = `${submission.name} - ${submission.examTitle}`;
   submissionDetail.innerHTML = `
@@ -900,8 +974,33 @@ async function openSubmission(id) {
         )
         .join("")}
     </div>
+    ${renderMonitoringGallery(submission)}
   `;
   dialog.showModal();
+}
+
+async function deleteSubmissionById(id) {
+  const submission = state.currentExamSubmissions.find((item) => String(item.id) === String(id));
+  if (!submission) return;
+  if (!confirm(`Excluir a resposta de ${submission.name}? Esta ação não pode ser desfeita.`)) return;
+
+  try {
+    await GincanaDB.deleteSubmission(submission.id);
+    state.currentExamSubmissions = state.currentExamSubmissions.filter(
+      (item) => String(item.id) !== String(submission.id)
+    );
+
+    if (String(openedSubmissionId) === String(submission.id)) {
+      dialog.close();
+      openedSubmissionId = "";
+      deleteSubmissionButton.dataset.id = "";
+    }
+
+    renderExamResponses(state.currentExamSubmissions);
+    showToast("Resposta excluída com sucesso.");
+  } catch (error) {
+    examResponsesSubtitle.textContent = error.message;
+  }
 }
 
 async function copyExamLink(exam, button) {
@@ -1034,6 +1133,7 @@ addQuestionButton.addEventListener("click", () => {
 questionsEditor.addEventListener("click", handleQuestionClick);
 questionsEditor.addEventListener("change", handleQuestionChange);
 examForm.addEventListener("submit", saveExam);
+examCameraMonitoring.addEventListener("change", syncCameraSettings);
 deleteExamButton.addEventListener("click", deleteCurrentExam);
 
 examList.addEventListener("click", async (event) => {
@@ -1051,15 +1151,28 @@ examList.addEventListener("click", async (event) => {
 
 refreshExamResponsesButton.addEventListener("click", () => loadExamResponses());
 examResponsesPanel.addEventListener("click", (event) => {
-  const button = event.target.closest('[data-action="open-submission"]');
-  if (button) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+
+  if (button.dataset.action === "open-submission") {
     openSubmission(button.dataset.id).catch((error) => {
       examResponsesSubtitle.textContent = error.message;
     });
   }
+
+  if (button.dataset.action === "delete-submission") {
+    deleteSubmissionById(button.dataset.id);
+  }
 });
 
-closeDialogButton.addEventListener("click", () => dialog.close());
+closeDialogButton.addEventListener("click", () => {
+  dialog.close();
+});
+deleteSubmissionButton.addEventListener("click", () => deleteSubmissionById(deleteSubmissionButton.dataset.id));
+dialog.addEventListener("close", () => {
+  openedSubmissionId = "";
+  deleteSubmissionButton.dataset.id = "";
+});
 importExamForm.addEventListener("submit", importExamFromText);
 closeImportDialogButton.addEventListener("click", closeImportExamDialog);
 cancelImportButton.addEventListener("click", closeImportExamDialog);
