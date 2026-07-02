@@ -55,6 +55,8 @@ test("interpreta o modelo oficial completo", () => {
 
   assert.equal(exam.title, "Gênesis 1 ao 16");
   assert.equal(exam.timeLimitMinutes, 40);
+  assert.equal(exam.cameraMonitoring, true);
+  assert.equal(exam.cameraIntervalSeconds, 60);
   assert.equal(exam.questions.length, 6);
   assert.deepEqual(
     exam.questions.map((question) => question.type),
@@ -70,6 +72,8 @@ for (const questionCount of [5, 20, 50, 100]) {
 
     assert.equal(exam.questions.length, questionCount);
     assert.equal(exam.timeLimitMinutes, 45);
+    assert.equal(exam.cameraMonitoring, false);
+    assert.equal(exam.cameraIntervalSeconds, 60);
     assert.ok(exam.questions.every((question) => question.id && question.prompt));
     assert.ok(exam.questions.every((question) => Number.isFinite(question.points)));
 

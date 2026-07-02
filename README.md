@@ -32,6 +32,7 @@ Este projeto foi intencionalmente configurado para uma gincana pequena:
 - O RLS esta desativado nas tres tabelas.
 - A role `anon` pode ler e alterar os dados.
 - As respostas corretas ficam no JSON da prova e podem ser vistas por alguem com conhecimento tecnico.
+- Fotos de monitoramento ficam temporariamente no registro da resposta e herdam essa mesma limitacao de seguranca; use somente com consentimento e exclua os envios assim que a revisao terminar.
 
 Isso dificulta apenas o uso casual da interface; **nao e seguranca real**. Antes de usar em um contexto maior, adote Supabase Auth, RLS por usuario e uma funcao protegida para correcao e administracao.
 
@@ -66,13 +67,15 @@ Nao configure `DATABASE_URL`, runtime Python ou Function. Tambem nao e necessari
 - Placar Meninos/Meninas com polling a cada 5 segundos e barras animadas.
 - Edicao do placar no ADM.
 - Criacao, edicao, ativacao e exclusao de provas.
-- Importacao de provas por texto, com validacao por linha e modelo copiavel ou baixavel.
+- Importacao de provas por texto, com validacao por linha, modelo copiavel ou baixavel e opcao de ja importar com monitoramento por fotos.
 - Questoes de escolha unica, multipla selecao, verdadeiro ou falso, texto curto e texto longo.
 - Imagem opcional por URL ou data URL.
 - Uma pergunta por vez, progresso, protecoes basicas e contagem de saidas da aba.
 - Tempo limite opcional por prova, com envio automatico ao encerrar.
 - Correcao automatica das questoes objetivas.
 - Respostas agrupadas por prova e por grupo, com resumo e detalhes.
+- Exclusao individual de respostas pelo painel administrativo.
+- Monitoramento opcional por fotos, sem audio, com consentimento e limite de 10 capturas.
 
 ## Melhorias futuras
 

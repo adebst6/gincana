@@ -5,6 +5,11 @@ const startForm = document.querySelector("#start-form");
 const participantName = document.querySelector("#participant-name");
 const participantGroup = document.querySelector("#participant-group");
 const fullscreenOption = document.querySelector("#fullscreen-option");
+const cameraConsentPanel = document.querySelector("#camera-consent-panel");
+const cameraConsentDescription = document.querySelector("#camera-consent-description");
+const cameraConsent = document.querySelector("#camera-consent");
+const startMessage = document.querySelector("#start-message");
+const startExamButton = document.querySelector("#start-exam-button");
 const examView = document.querySelector("#exam-view");
 const successView = document.querySelector("#success-view");
 const errorView = document.querySelector("#error-view");
@@ -18,6 +23,11 @@ const progressLabel = document.querySelector("#progress-label");
 const progressPercent = document.querySelector("#progress-percent");
 const progressFill = document.querySelector("#progress-fill");
 const timerDisplay = document.querySelector("#timer-display");
+const cameraMonitoringStatus = document.querySelector("#camera-monitoring-status");
+const cameraPreview = document.querySelector("#camera-preview");
+const cameraCanvas = document.querySelector("#camera-canvas");
+const cameraStatusLabel = document.querySelector("#camera-status-label");
+const cameraSnapshotCount = document.querySelector("#camera-snapshot-count");
 const prevQuestionButton = document.querySelector("#prev-question-button");
 const nextQuestionButton = document.querySelector("#next-question-button");
 const submitExamButton = document.querySelector("#submit-exam-button");
@@ -37,6 +47,12 @@ let timerDeadline = null;
 let timerInterval = null;
 let timeExpired = false;
 let isSubmitting = false;
+let cameraStream = null;
+let cameraCaptureTimer = null;
+let cameraConsentAt = null;
+let monitoringSnapshots = [];
+
+const MAX_MONITORING_SNAPSHOTS = 10;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -67,6 +83,11 @@ function setMessage(message, type = "") {
   examMessage.className = `form-message ${type}`.trim();
 }
 
+function setStartMessage(message, type = "") {
+  startMessage.textContent = message;
+  startMessage.className = `form-message ${type}`.trim();
+}
+
 function showOnly(section) {
   [startView, examView, successView, errorView].forEach((view) => view.classList.add("hidden"));
   section.classList.remove("hidden");
@@ -83,6 +104,12 @@ async function loadExam() {
     if (currentExam.timeLimitMinutes > 0) {
       timeLimitNotice.textContent = `Tempo limite: ${formatTimeLimit(currentExam.timeLimitMinutes)}. Ao terminar, as respostas serão enviadas automaticamente.`;
       timeLimitNotice.classList.remove("hidden");
+    }
+    if (currentExam.cameraMonitoring) {
+      const interval = Number(currentExam.cameraIntervalSeconds || 60);
+      cameraConsentDescription.textContent = `Serão feitas fotos ao iniciar, a cada ${interval} segundos e ao finalizar. Não há gravação de áudio. Máximo de ${MAX_MONITORING_SNAPSHOTS} fotos.`;
+      cameraConsent.required = true;
+      cameraConsentPanel.classList.remove("hidden");
     }
     renderQuestions();
     updateQuestionView();
@@ -298,12 +325,136 @@ function startTimer() {
   timerInterval = window.setInterval(updateTimer, 250);
 }
 
+function cameraErrorMessage(error) {
+  if (error?.message === "Este navegador não oferece acesso à câmera.") return error.message;
+  if (error?.name === "NotAllowedError") {
+    return "A câmera não foi autorizada. Permita o acesso para iniciar esta prova.";
+  }
+  if (error?.name === "NotFoundError") return "Nenhuma câmera foi encontrada neste aparelho.";
+  if (error?.name === "NotReadableError") return "A câmera está sendo usada por outro aplicativo.";
+  return "Não foi possível iniciar a câmera. Verifique a permissão e tente novamente.";
+}
+
+function waitForCameraReady() {
+  if (cameraPreview.readyState >= 2 && cameraPreview.videoWidth) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error("CameraTimeout")), 6000);
+    cameraPreview.addEventListener(
+      "loadeddata",
+      () => {
+        window.clearTimeout(timeout);
+        resolve();
+      },
+      { once: true }
+    );
+  });
+}
+
+function updateCameraSnapshotCount() {
+  const total = monitoringSnapshots.length;
+  cameraSnapshotCount.textContent = `${total} ${total === 1 ? "foto capturada" : "fotos capturadas"} de ${MAX_MONITORING_SNAPSHOTS}`;
+}
+
+function captureMonitoringSnapshot(kind = "interval") {
+  if (!cameraStream || !cameraPreview.videoWidth || !cameraPreview.videoHeight) return false;
+  if (kind === "interval" && monitoringSnapshots.length >= MAX_MONITORING_SNAPSHOTS - 1) {
+    if (cameraCaptureTimer) window.clearInterval(cameraCaptureTimer);
+    cameraCaptureTimer = null;
+    return false;
+  }
+
+  const scale = Math.min(480 / cameraPreview.videoWidth, 360 / cameraPreview.videoHeight, 1);
+  const width = Math.round(cameraPreview.videoWidth * scale);
+  const height = Math.round(cameraPreview.videoHeight * scale);
+  cameraCanvas.width = width;
+  cameraCanvas.height = height;
+  const context = cameraCanvas.getContext("2d");
+  if (!context) return false;
+
+  context.drawImage(cameraPreview, 0, 0, width, height);
+  const snapshot = {
+    capturedAt: new Date().toISOString(),
+    kind,
+    image: cameraCanvas.toDataURL("image/jpeg", 0.55),
+  };
+
+  if (kind === "final" && monitoringSnapshots.length >= MAX_MONITORING_SNAPSHOTS) {
+    monitoringSnapshots[MAX_MONITORING_SNAPSHOTS - 1] = snapshot;
+  } else {
+    monitoringSnapshots.push(snapshot);
+  }
+  updateCameraSnapshotCount();
+  return true;
+}
+
+function stopCameraMonitoring() {
+  if (cameraCaptureTimer) window.clearInterval(cameraCaptureTimer);
+  cameraCaptureTimer = null;
+  cameraStream?.getTracks().forEach((track) => track.stop());
+  cameraStream = null;
+  cameraPreview.srcObject = null;
+  if (!cameraMonitoringStatus.classList.contains("hidden")) {
+    cameraStatusLabel.textContent = "Câmera finalizada";
+    cameraMonitoringStatus.classList.add("stopped");
+  }
+}
+
+async function startCameraMonitoring() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Este navegador não oferece acesso à câmera.");
+  }
+
+  monitoringSnapshots = [];
+  cameraStream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: "user",
+      width: { ideal: 640 },
+      height: { ideal: 480 },
+    },
+    audio: false,
+  });
+  cameraPreview.srcObject = cameraStream;
+  await cameraPreview.play();
+  await waitForCameraReady();
+
+  cameraConsentAt = new Date().toISOString();
+  cameraStatusLabel.textContent = "Câmera ativa";
+  cameraMonitoringStatus.classList.remove("stopped");
+  cameraMonitoringStatus.classList.remove("hidden");
+  captureMonitoringSnapshot("start");
+
+  const interval = Number(currentExam.cameraIntervalSeconds || 60) * 1000;
+  cameraCaptureTimer = window.setInterval(() => captureMonitoringSnapshot("interval"), interval);
+}
+
 async function startExam(event) {
   event.preventDefault();
   if (!participantName.value.trim() || !participantGroup.value) return;
+  setStartMessage("");
+
+  if (currentExam.cameraMonitoring && !cameraConsent.checked) {
+    setStartMessage("Marque a autorização da câmera para iniciar.", "error");
+    return;
+  }
+
+  startExamButton.disabled = true;
 
   if (fullscreenOption.checked && document.documentElement.requestFullscreen) {
     await document.documentElement.requestFullscreen().catch(() => {});
+  }
+
+  if (currentExam.cameraMonitoring) {
+    setStartMessage("Solicitando acesso à câmera...");
+    try {
+      await startCameraMonitoring();
+    } catch (error) {
+      stopCameraMonitoring();
+      if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+      setStartMessage(cameraErrorMessage(error), "error");
+      startExamButton.disabled = false;
+      return;
+    }
   }
 
   currentQuestionIndex = 0;
@@ -397,6 +548,10 @@ async function submitExam(event) {
   submitExamButton.disabled = true;
 
   try {
+    if (currentExam.cameraMonitoring) {
+      captureMonitoringSnapshot("final");
+      stopCameraMonitoring();
+    }
     const result = scoreAnswers(collectAnswers());
     await GincanaDB.createSubmission({
       examId: currentExam.id,
@@ -405,6 +560,8 @@ async function submitExam(event) {
       answers: result.answers,
       score: result.score,
       tabLeaveCount: focusLosses,
+      cameraConsentAt,
+      monitoringSnapshots,
     });
 
     deactivateGuards();
@@ -429,5 +586,6 @@ publicExamForm.addEventListener("submit", submitExam);
 questionsView.addEventListener("change", syncChoiceSelection);
 prevQuestionButton.addEventListener("click", () => goToQuestion(currentQuestionIndex - 1));
 nextQuestionButton.addEventListener("click", () => goToQuestion(currentQuestionIndex + 1));
+window.addEventListener("pagehide", stopCameraMonitoring);
 
 loadExam();

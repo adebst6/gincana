@@ -14,6 +14,8 @@
   const OFFICIAL_TEMPLATE = `PROVA
 Titulo: Gênesis 1 ao 16
 Tempo: 40
+Monitoramento: Sim
+IntervaloFotos: 60
 Descricao: Primeira fase da gincana.
 
 ---
@@ -172,6 +174,35 @@ Correta: B
     const number = Number(String(field.value).replace(",", "."));
     if (!Number.isFinite(number) || number < 0) fail(field.line, description);
     return number;
+  }
+
+  function parseMonitoringFlag(field) {
+    const normalized = String(field?.value || "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+    if (["sim", "s", "true", "1", "ativado", "ativa", "ativo"].includes(normalized)) return true;
+    if (
+      ["nao", "não", "n", "false", "0", "desativado", "desativada", "inativo", "inativa"].includes(
+        normalized
+      )
+    ) {
+      return false;
+    }
+
+    fail(field.line, 'Use "Sim" ou "Não" no campo Monitoramento.');
+  }
+
+  function parseCameraInterval(field) {
+    if (!field) return 60;
+    const interval = parseNonNegativeNumber(
+      field,
+      "O intervalo das fotos deve ser 30, 60 ou 120 segundos."
+    );
+    if (![30, 60, 120].includes(interval)) {
+      fail(field.line, "O intervalo das fotos deve ser 30, 60 ou 120 segundos.");
+    }
+    return interval;
   }
 
   function isAsciiLetter(value) {
@@ -426,6 +457,8 @@ Correta: B
 
     const titleField = readRequiredField(header, "Titulo", headerLine.number, "Informe o título da prova.");
     const timeField = readRequiredField(header, "Tempo", headerLine.number, "Informe o tempo da prova.");
+    const monitoringField = readField(header, "Monitoramento");
+    const intervalField = readField(header, "IntervaloFotos");
     const descriptionField = readField(header, "Descricao");
     const time = parseNonNegativeNumber(
       timeField,
@@ -439,6 +472,8 @@ Correta: B
       title: titleField.value,
       description: descriptionField?.value || "",
       timeLimitMinutes: time,
+      cameraMonitoring: monitoringField ? parseMonitoringFlag(monitoringField) : false,
+      cameraIntervalSeconds: parseCameraInterval(intervalField),
       active: true,
       questions: blocks.map((block) => parseQuestion(block)),
     };
@@ -458,6 +493,8 @@ Correta: B
       title: exam.title.trim(),
       description: exam.description.trim(),
       timeLimitMinutes: exam.timeLimitMinutes,
+      cameraMonitoring: exam.cameraMonitoring,
+      cameraIntervalSeconds: exam.cameraIntervalSeconds,
       active: true,
       questions: exam.questions.map(cleanQuestion),
     };

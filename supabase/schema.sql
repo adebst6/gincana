@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS public.exams (
     description TEXT NOT NULL DEFAULT '',
     active BOOLEAN NOT NULL DEFAULT TRUE,
     time_limit_minutes INTEGER NOT NULL DEFAULT 0 CHECK (time_limit_minutes >= 0),
+    camera_monitoring BOOLEAN NOT NULL DEFAULT FALSE,
+    camera_interval_seconds INTEGER NOT NULL DEFAULT 60 CHECK (camera_interval_seconds BETWEEN 30 AND 300),
     questions JSONB NOT NULL DEFAULT '[]'::JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -51,6 +53,13 @@ CREATE TABLE IF NOT EXISTS public.exams (
 ALTER TABLE public.exams
 ADD COLUMN IF NOT EXISTS time_limit_minutes INTEGER NOT NULL DEFAULT 0
 CHECK (time_limit_minutes >= 0);
+
+ALTER TABLE public.exams
+ADD COLUMN IF NOT EXISTS camera_monitoring BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE public.exams
+ADD COLUMN IF NOT EXISTS camera_interval_seconds INTEGER NOT NULL DEFAULT 60
+CHECK (camera_interval_seconds BETWEEN 30 AND 300);
 
 CREATE TABLE IF NOT EXISTS public.submissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -60,8 +69,16 @@ CREATE TABLE IF NOT EXISTS public.submissions (
     answers JSONB NOT NULL DEFAULT '[]'::JSONB,
     score DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (score >= 0),
     tab_leave_count INTEGER NOT NULL DEFAULT 0 CHECK (tab_leave_count >= 0),
+    camera_consent_at TIMESTAMPTZ,
+    monitoring_snapshots JSONB NOT NULL DEFAULT '[]'::JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.submissions
+ADD COLUMN IF NOT EXISTS camera_consent_at TIMESTAMPTZ;
+
+ALTER TABLE public.submissions
+ADD COLUMN IF NOT EXISTS monitoring_snapshots JSONB NOT NULL DEFAULT '[]'::JSONB;
 
 DO $$
 DECLARE
