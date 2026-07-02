@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gincana Online | Pontuação</title>
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/styles.css?v=5" />
   </head>
   <body class="score-page">
     <main class="score-shell">
@@ -13,7 +13,18 @@
           <p class="eyebrow">Gincana Online</p>
           <h1>Pontuação ao vivo</h1>
         </div>
-        <a class="admin-shortcut" href="/admin">ADM</a>
+        <div class="score-header-actions">
+          <button
+            id="copy-public-score-button"
+            type="button"
+            class="icon-button"
+            aria-label="Copiar pontuação"
+            title="Copiar pontuação"
+          >
+            <span class="copy-icon" aria-hidden="true">⧉</span>
+          </button>
+          <a class="admin-shortcut" href="/admin">ADM</a>
+        </div>
       </header>
 
       <section class="score-grid" aria-live="polite">
@@ -47,6 +58,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/assets/supabase.js"></script>
-    <script src="/assets/score.js"></script>
+    <script src="/assets/score.js?v=3"></script>
   </body>
 </html>

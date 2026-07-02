@@ -10,6 +10,7 @@ const scoresForm = document.querySelector("#scores-form");
 const scoreBoys = document.querySelector("#score-boys");
 const scoreGirls = document.querySelector("#score-girls");
 const scoresMessage = document.querySelector("#scores-message");
+const copyScoresButton = document.querySelector("#copy-scores-button");
 
 const examViews = document.querySelectorAll(".exam-admin-view");
 const examListView = document.querySelector("#exam-list-view");
@@ -239,6 +240,49 @@ async function saveScores(event) {
     setMessage(scoresMessage, "Pontuação salva.", "ok");
   } catch (error) {
     setMessage(scoresMessage, error.message, "error");
+  }
+}
+
+function scoreShareText(boys, girls) {
+  return `meninos: ${boys} pontos\n\nmeninas: ${girls} pontos`;
+}
+
+async function writeClipboardText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch (error) {
+    const helper = document.createElement("textarea");
+    helper.value = text;
+    helper.setAttribute("readonly", "");
+    helper.style.position = "fixed";
+    helper.style.opacity = "0";
+    document.body.append(helper);
+    helper.select();
+    const copied = document.execCommand("copy");
+    helper.remove();
+    if (!copied) throw error;
+  }
+}
+
+function showCopyFeedback(button) {
+  const icon = button.querySelector(".copy-icon");
+  icon.textContent = "✓";
+  button.classList.add("copied");
+  button.setAttribute("aria-label", "Pontuação copiada");
+  setTimeout(() => {
+    icon.textContent = "⧉";
+    button.classList.remove("copied");
+    button.setAttribute("aria-label", "Copiar pontuação");
+  }, 1600);
+}
+
+async function copyAdminScores() {
+  try {
+    await writeClipboardText(scoreShareText(Number(scoreBoys.value || 0), Number(scoreGirls.value || 0)));
+    showCopyFeedback(copyScoresButton);
+  } catch (error) {
+    setMessage(scoresMessage, "Não foi possível copiar agora.", "error");
   }
 }
 
@@ -846,6 +890,7 @@ tabs.forEach((tab) => {
 });
 
 scoresForm.addEventListener("submit", saveScores);
+copyScoresButton.addEventListener("click", copyAdminScores);
 newExamButton.addEventListener("click", () => navigateToExamEditor());
 backDetailButton.addEventListener("click", () => navigateToExamList());
 backEditorButton.addEventListener("click", () => navigateToExamList());

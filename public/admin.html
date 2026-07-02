@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gincana Online | ADM</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=3" />
+    <link rel="stylesheet" href="/assets/styles.css?v=5" />
   </head>
   <body class="admin-page">
     <main class="admin-shell">
@@ -41,7 +41,18 @@
               <h2>Pontuação manual</h2>
               <p>Os valores salvos aparecem automaticamente na tela pública.</p>
             </div>
-            <a class="ghost-link" href="/" target="_blank">Abrir placar</a>
+            <div class="panel-actions">
+              <button
+                id="copy-scores-button"
+                type="button"
+                class="icon-button"
+                aria-label="Copiar pontuação"
+                title="Copiar pontuação"
+              >
+                <span class="copy-icon" aria-hidden="true">⧉</span>
+              </button>
+              <a class="ghost-link" href="/" target="_blank">Abrir placar</a>
+            </div>
           </div>
 
           <form id="scores-form" class="score-form">
@@ -235,6 +246,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/assets/supabase.js"></script>
-    <script src="/assets/admin.js"></script>
+    <script src="/assets/admin.js?v=3"></script>
   </body>
 </html>
