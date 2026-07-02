@@ -382,7 +382,9 @@ function normalizeForEditor(question) {
   if (!copy.id) copy.id = uid();
   if (!copy.type) copy.type = "single";
   if (!Array.isArray(copy.options)) copy.options = [];
-  if (copy.type === "single" || copy.type === "multi") {
+  if (copy.type === "boolean") {
+    copy.options = ["Verdadeiro", "Falso"];
+  } else if (copy.type === "single" || copy.type === "multi") {
     while (copy.options.length < 2) copy.options.push("");
   }
   if (copy.type === "multi" && !Array.isArray(copy.correct)) copy.correct = [];
@@ -419,7 +421,7 @@ function renderQuestions() {
 }
 
 function renderQuestion(question, index) {
-  const isChoice = question.type === "single" || question.type === "multi";
+  const isChoice = question.type === "single" || question.type === "multi" || question.type === "boolean";
   const imagePreview = question.image
     ? `<img class="image-preview" src="${escapeHtml(question.image)}" alt="Prévia da imagem" />`
     : "";
@@ -429,7 +431,7 @@ function renderQuestion(question, index) {
       <div class="question-editor-heading">
         <div>
           <span class="question-index">Pergunta ${index + 1}</span>
-          <span class="question-type-label">${question.type === "single" ? "Múltipla escolha" : question.type === "multi" ? "Múltipla seleção" : question.type === "short" ? "Texto curto" : "Texto longo"}</span>
+          <span class="question-type-label">${question.type === "single" ? "Múltipla escolha" : question.type === "multi" ? "Múltipla seleção" : question.type === "boolean" ? "Verdadeiro ou falso" : question.type === "short" ? "Texto curto" : "Texto longo"}</span>
         </div>
         <div class="question-order-actions">
           <button type="button" class="small-button icon-order-button" data-action="move-question-up" aria-label="Subir pergunta ${index + 1}" title="Subir pergunta" ${index === 0 ? "disabled" : ""}>↑</button>
@@ -444,6 +446,7 @@ function renderQuestion(question, index) {
           <select data-field="type">
             <option value="single" ${question.type === "single" ? "selected" : ""}>Múltipla escolha</option>
             <option value="multi" ${question.type === "multi" ? "selected" : ""}>Múltipla seleção</option>
+            <option value="boolean" ${question.type === "boolean" ? "selected" : ""}>Verdadeiro ou falso</option>
             <option value="short" ${question.type === "short" ? "selected" : ""}>Texto curto</option>
             <option value="long" ${question.type === "long" ? "selected" : ""}>Texto longo</option>
           </select>
@@ -478,9 +481,9 @@ function renderQuestion(question, index) {
               <div class="options-heading">
                 <div>
                   <h3>Alternativas</h3>
-                  <p>${question.type === "single" ? "Marque uma alternativa correta." : "Marque todas as alternativas corretas."}</p>
+                  <p>${question.type === "multi" ? "Marque todas as alternativas corretas." : "Marque uma alternativa correta."}</p>
                 </div>
-                <button type="button" class="secondary-button" data-action="add-option">+ Adicionar alternativa</button>
+                ${question.type === "boolean" ? "" : '<button type="button" class="secondary-button" data-action="add-option">+ Adicionar alternativa</button>'}
               </div>
               <div class="option-list">
                 ${question.options.map((option, optionIndex) => renderOption(question, option, optionIndex)).join("")}
@@ -496,10 +499,11 @@ function renderQuestion(question, index) {
 function renderOption(question, option, optionIndex) {
   const correctName = `correct-${question.id}`;
   const checked =
-    question.type === "single"
+    question.type === "single" || question.type === "boolean"
       ? String(question.correct) === String(optionIndex)
       : Array.isArray(question.correct) && question.correct.map(String).includes(String(optionIndex));
-  const inputType = question.type === "single" ? "radio" : "checkbox";
+  const inputType = question.type === "single" || question.type === "boolean" ? "radio" : "checkbox";
+  const fixedOption = question.type === "boolean";
 
   return `
     <div class="option-row" data-option-index="${optionIndex}">
@@ -507,8 +511,8 @@ function renderOption(question, option, optionIndex) {
         <input data-field="correct" name="${correctName}" type="${inputType}" value="${optionIndex}" ${checked ? "checked" : ""} />
         <span>Correta</span>
       </label>
-      <input data-field="option" type="text" value="${escapeHtml(option)}" placeholder="Alternativa ${optionIndex + 1}" aria-label="Texto da alternativa ${optionIndex + 1}" />
-      <button type="button" class="small-button option-remove-button" data-action="remove-option" aria-label="Remover alternativa ${optionIndex + 1}">Remover</button>
+      <input data-field="option" type="text" value="${escapeHtml(option)}" placeholder="Alternativa ${optionIndex + 1}" aria-label="Texto da alternativa ${optionIndex + 1}" ${fixedOption ? "readonly" : ""} />
+      ${fixedOption ? "" : `<button type="button" class="small-button option-remove-button" data-action="remove-option" aria-label="Remover alternativa ${optionIndex + 1}">Remover</button>`}
     </div>
   `;
 }
@@ -520,7 +524,7 @@ function collectExamForm() {
     const options = rows.map((row) => row.querySelector('[data-field="option"]').value);
 
     let correct = "";
-    if (type === "single") {
+    if (type === "single" || type === "boolean") {
       const selected = rows.find((row) => row.querySelector('[data-field="correct"]')?.checked);
       correct = selected?.dataset.optionIndex ?? "";
     } else if (type === "multi") {
@@ -551,7 +555,10 @@ function collectExamForm() {
 }
 
 function ensureChoiceQuestion(question) {
-  if (question.type === "single" || question.type === "multi") {
+  if (question.type === "boolean") {
+    question.options = ["Verdadeiro", "Falso"];
+    if (Array.isArray(question.correct)) question.correct = "";
+  } else if (question.type === "single" || question.type === "multi") {
     while (question.options.length < 2) question.options.push("");
     if (question.type === "multi" && !Array.isArray(question.correct)) question.correct = [];
     if (question.type === "single" && Array.isArray(question.correct)) question.correct = "";
@@ -571,7 +578,7 @@ function sanitizeQuestion(question, questionIndex) {
   });
 
   let correct = "";
-  if (question.type === "single") {
+  if (question.type === "single" || question.type === "boolean") {
     correct = optionMap.get(String(question.correct)) ?? "";
   } else if (question.type === "multi") {
     correct = (Array.isArray(question.correct) ? question.correct : [])
@@ -587,11 +594,13 @@ function sanitizeQuestion(question, questionIndex) {
     correct,
   };
 
+  if (clean.type === "boolean") clean.options = ["Verdadeiro", "Falso"];
+
   if (!clean.prompt) throw new Error(`Escreva o texto da pergunta ${questionIndex + 1}.`);
-  if ((clean.type === "single" || clean.type === "multi") && clean.options.length < 2) {
+  if ((clean.type === "single" || clean.type === "multi" || clean.type === "boolean") && clean.options.length < 2) {
     throw new Error(`Adicione pelo menos duas alternativas na pergunta ${questionIndex + 1}.`);
   }
-  if (clean.type === "single" && clean.correct === "") {
+  if ((clean.type === "single" || clean.type === "boolean") && clean.correct === "") {
     throw new Error(`Marque a resposta correta da pergunta ${questionIndex + 1}.`);
   }
   if (clean.type === "multi" && clean.correct.length === 0) {
@@ -795,7 +804,8 @@ function renderGroupResponses(container, group, submissions) {
 }
 
 function answerText(answer, question) {
-  if (question.type === "single") {
+  if (question.type === "single" || question.type === "boolean") {
+    if (answer === "" || answer == null) return "Sem resposta";
     return question.options[Number(answer)] || "Sem resposta";
   }
   if (question.type === "multi") {
@@ -806,7 +816,8 @@ function answerText(answer, question) {
 }
 
 function correctText(question) {
-  if (question.type === "single") {
+  if (question.type === "single" || question.type === "boolean") {
+    if (question.correct === "" || question.correct == null) return "Sem gabarito";
     return question.options[Number(question.correct)] || "Sem gabarito";
   }
   if (question.type === "multi") {
@@ -819,7 +830,7 @@ function correctText(question) {
 }
 
 function hasAutomaticCorrectAnswer(question) {
-  return question.type === "single" || question.type === "multi";
+  return question.type === "single" || question.type === "multi" || question.type === "boolean";
 }
 
 async function openSubmission(id) {
