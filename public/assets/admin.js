@@ -28,6 +28,7 @@ const detailExamDescription = document.querySelector("#detail-exam-description")
 const detailExamStatus = document.querySelector("#detail-exam-status");
 const detailExamQuestions = document.querySelector("#detail-exam-questions");
 const detailExamResponses = document.querySelector("#detail-exam-responses");
+const detailExamTime = document.querySelector("#detail-exam-time");
 const detailExamBoys = document.querySelector("#detail-exam-boys");
 const detailExamGirls = document.querySelector("#detail-exam-girls");
 const detailPublicLink = document.querySelector("#detail-public-link");
@@ -41,6 +42,7 @@ const examId = document.querySelector("#exam-id");
 const examTitle = document.querySelector("#exam-title");
 const examDescription = document.querySelector("#exam-description");
 const examActive = document.querySelector("#exam-active");
+const examTimeLimit = document.querySelector("#exam-time-limit");
 const questionsEditor = document.querySelector("#questions-editor");
 const addQuestionButton = document.querySelector("#add-question-button");
 const deleteExamButton = document.querySelector("#delete-exam-button");
@@ -309,6 +311,7 @@ function resetExamForm() {
     title: "",
     description: "",
     active: true,
+    timeLimitMinutes: 0,
     questions: [defaultQuestion()],
   };
   state.currentExamSubmissions = [];
@@ -344,6 +347,7 @@ function renderExamList() {
             <div class="exam-meta">
               <span>${exam.questions.length} ${exam.questions.length === 1 ? "pergunta" : "perguntas"}</span>
               <span>${exam.submissionsCount} ${exam.submissionsCount === 1 ? "resposta" : "respostas"}</span>
+              <span>${exam.timeLimitMinutes > 0 ? `${exam.timeLimitMinutes} min` : "Sem limite"}</span>
             </div>
           </button>
           <div class="exam-item-actions">
@@ -366,6 +370,7 @@ function renderExamDetail() {
   detailExamStatus.className = `pill ${exam.active ? "active" : "inactive"}`;
   detailExamQuestions.textContent = String(exam.questions.length);
   detailExamResponses.textContent = String(exam.submissionsCount || 0);
+  detailExamTime.textContent = exam.timeLimitMinutes > 0 ? `${exam.timeLimitMinutes} min` : "Sem limite";
   detailExamBoys.textContent = formatNumber(exam.totals.Meninos);
   detailExamGirls.textContent = formatNumber(exam.totals.Meninas);
   detailPublicLink.value = absolutePublicUrl(exam);
@@ -391,6 +396,7 @@ function renderExamForm() {
   examTitle.value = exam.title || "";
   examDescription.value = exam.description || "";
   examActive.checked = exam.active !== false;
+  examTimeLimit.value = exam.timeLimitMinutes || 0;
   deleteExamButton.classList.toggle("hidden", !exam.id);
   renderQuestions();
 }
@@ -539,6 +545,7 @@ function collectExamForm() {
     title: examTitle.value,
     description: examDescription.value,
     active: examActive.checked,
+    timeLimitMinutes: Math.max(0, Math.floor(Number(examTimeLimit.value || 0))),
     questions,
   };
 }
@@ -678,6 +685,7 @@ async function saveExam(event) {
       title: state.currentExam.title.trim(),
       description: state.currentExam.description.trim(),
       active: state.currentExam.active,
+      timeLimitMinutes: state.currentExam.timeLimitMinutes,
       questions: state.currentExam.questions.map(sanitizeQuestion),
     };
     const savedExam = await GincanaDB.saveExam({ id: state.currentExam.id, ...payload });

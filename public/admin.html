@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gincana Online | ADM</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=5" />
+    <link rel="stylesheet" href="/assets/styles.css?v=6" />
   </head>
   <body class="admin-page">
     <main class="admin-shell">
@@ -109,6 +109,10 @@
                 <span>Respostas</span>
                 <strong id="detail-exam-responses">0</strong>
               </div>
+              <div class="response-stat">
+                <span>Tempo limite</span>
+                <strong id="detail-exam-time">Sem limite</strong>
+              </div>
               <div class="response-stat boys">
                 <span>Pontos Meninos</span>
                 <strong id="detail-exam-boys">0</strong>
@@ -151,6 +155,11 @@
                 <label>
                   Descrição
                   <textarea id="exam-description" rows="3"></textarea>
+                </label>
+                <label>
+                  Tempo limite (minutos)
+                  <input id="exam-time-limit" type="number" min="0" max="600" step="1" value="0" />
+                  <span class="field-hint">Use 0 para deixar a prova sem limite.</span>
                 </label>
                 <label class="inline-check exam-status-control">
                   <input id="exam-active" type="checkbox" checked />
@@ -245,7 +254,7 @@
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/assets/supabase.js"></script>
-    <script src="/assets/admin.js?v=3"></script>
+    <script src="/assets/supabase.js?v=2"></script>
+    <script src="/assets/admin.js?v=4"></script>
   </body>
 </html>

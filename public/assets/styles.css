@@ -670,8 +670,14 @@ label {
 
 .exam-detail-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.75rem;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .public-link-panel {
@@ -1173,6 +1179,26 @@ tr:last-child td {
   gap: 0.75rem;
   color: var(--muted);
   font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.timer-display {
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-display.warning {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.time-limit-notice {
+  border-color: #cfe3fb;
+  background: var(--blue-soft);
+  color: var(--blue-dark);
   font-weight: 800;
 }
 
