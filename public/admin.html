@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gincana Online | ADM</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=6" />
+    <link rel="stylesheet" href="/assets/styles.css?v=7" />
   </head>
   <body class="admin-page">
     <main class="admin-shell">
@@ -77,7 +77,10 @@
                 <h2>Provas online</h2>
                 <p>Gerencie provas, links e respostas em um só lugar.</p>
               </div>
-              <button id="new-exam-button" class="primary-button">+ Nova prova</button>
+              <div class="panel-actions">
+                <button id="import-exam-button" type="button" class="secondary-button">Importar prova</button>
+                <button id="new-exam-button" class="primary-button">+ Nova prova</button>
+              </div>
             </div>
             <div id="exam-list" class="exam-list"></div>
           </section>
@@ -253,8 +256,51 @@
       <div id="submission-detail"></div>
     </dialog>
 
+    <dialog id="import-exam-dialog" class="details-dialog import-exam-dialog">
+      <form id="import-exam-form" class="import-exam-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Importação automática</p>
+            <h2>Importar prova por texto</h2>
+            <p class="import-exam-description">
+              Cole abaixo uma prova gerada pelo ChatGPT utilizando o padrão oficial.
+            </p>
+          </div>
+          <button id="close-import-dialog-button" type="button" class="ghost-button">Fechar</button>
+        </div>
+
+        <label>
+          Texto da prova
+          <textarea
+            id="import-exam-text"
+            class="import-exam-text"
+            rows="22"
+            spellcheck="false"
+            placeholder="Cole aqui a prova no formato oficial..."
+            required
+          ></textarea>
+        </label>
+
+        <p id="import-exam-message" class="form-message import-exam-message" aria-live="polite"></p>
+
+        <div class="import-dialog-actions">
+          <div class="template-actions">
+            <button id="copy-exam-template-button" type="button" class="secondary-button">Copiar modelo</button>
+            <button id="download-exam-template-button" type="button" class="secondary-button">Baixar modelo</button>
+          </div>
+          <div class="form-actions">
+            <button id="cancel-import-button" type="button" class="ghost-button">Cancelar</button>
+            <button id="submit-import-button" type="submit" class="primary-button">Importar Prova</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="admin-toast" class="admin-toast hidden" role="status" aria-live="polite"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/assets/supabase.js?v=2"></script>
-    <script src="/assets/admin.js?v=5"></script>
+    <script src="/assets/parser.js?v=1"></script>
+    <script src="/assets/admin.js?v=6"></script>
   </body>
 </html>

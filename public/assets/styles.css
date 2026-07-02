@@ -1102,6 +1102,69 @@ tr:last-child td {
   background: rgba(34, 40, 56, 0.32);
 }
 
+.import-exam-dialog {
+  width: min(980px, calc(100% - 2rem));
+  overflow: hidden;
+}
+
+.import-exam-form {
+  max-height: calc(88vh - 2.8rem);
+  display: grid;
+  grid-template-rows: auto minmax(260px, 1fr) auto auto;
+  gap: 1rem;
+}
+
+.import-exam-form > label {
+  min-height: 0;
+}
+
+.import-exam-description {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.import-exam-text {
+  height: 100%;
+  min-height: 260px;
+  resize: vertical;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.import-exam-message {
+  min-height: 1.4rem;
+  margin: 0;
+  white-space: pre-line;
+}
+
+.import-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.admin-toast {
+  position: fixed;
+  z-index: 20;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  max-width: min(420px, calc(100% - 2rem));
+  border: 1px solid #bfe8d1;
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+  background: var(--green-soft);
+  color: var(--green);
+  font-weight: 800;
+  animation: questionIn 180ms ease both;
+}
+
 .detail-list {
   display: grid;
   gap: 0.85rem;
@@ -1482,6 +1545,20 @@ body.exam-active select {
   .score-header-actions,
   .panel-actions {
     width: 100%;
+  }
+
+  .import-dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .import-dialog-actions .template-actions,
+  .import-dialog-actions .form-actions {
+    width: 100%;
+  }
+
+  .import-dialog-actions button {
+    flex: 1;
   }
 
   .score-form,

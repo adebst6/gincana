@@ -19,6 +19,7 @@ const examEditorView = document.querySelector("#exam-editor-view");
 const examResponsesView = document.querySelector("#exam-responses-view");
 const examList = document.querySelector("#exam-list");
 const newExamButton = document.querySelector("#new-exam-button");
+const importExamButton = document.querySelector("#import-exam-button");
 
 const backDetailButton = document.querySelector("#back-detail-button");
 const detailEditButton = document.querySelector("#detail-edit-button");
@@ -66,6 +67,17 @@ const closeDialogButton = document.querySelector("#close-dialog-button");
 const detailTitle = document.querySelector("#detail-title");
 const submissionDetail = document.querySelector("#submission-detail");
 
+const importExamDialog = document.querySelector("#import-exam-dialog");
+const importExamForm = document.querySelector("#import-exam-form");
+const importExamText = document.querySelector("#import-exam-text");
+const importExamMessage = document.querySelector("#import-exam-message");
+const closeImportDialogButton = document.querySelector("#close-import-dialog-button");
+const cancelImportButton = document.querySelector("#cancel-import-button");
+const copyExamTemplateButton = document.querySelector("#copy-exam-template-button");
+const downloadExamTemplateButton = document.querySelector("#download-exam-template-button");
+const submitImportButton = document.querySelector("#submit-import-button");
+const adminToast = document.querySelector("#admin-toast");
+
 const state = {
   exams: [],
   currentExam: null,
@@ -75,6 +87,7 @@ const state = {
 
 const ADMIN_PASSWORD = "gincana123";
 const ADMIN_SESSION_KEY = "gincana_admin_session";
+let toastTimer = null;
 
 function uid() {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -259,8 +272,11 @@ async function writeClipboardText(text) {
     helper.setAttribute("readonly", "");
     helper.style.position = "fixed";
     helper.style.opacity = "0";
-    document.body.append(helper);
+    const activeDialog = document.querySelector("dialog[open]");
+    (activeDialog || document.body).append(helper);
+    helper.focus();
     helper.select();
+    helper.setSelectionRange(0, helper.value.length);
     const copied = document.execCommand("copy");
     helper.remove();
     if (!copied) throw error;
@@ -384,7 +400,7 @@ function normalizeForEditor(question) {
   if (!Array.isArray(copy.options)) copy.options = [];
   if (copy.type === "boolean") {
     copy.options = ["Verdadeiro", "Falso"];
-  } else if (copy.type === "single" || copy.type === "multi") {
+  } else if (copy.type === "single" || copy.type === "multi" || copy.type === "image") {
     while (copy.options.length < 2) copy.options.push("");
   }
   if (copy.type === "multi" && !Array.isArray(copy.correct)) copy.correct = [];
@@ -421,7 +437,11 @@ function renderQuestions() {
 }
 
 function renderQuestion(question, index) {
-  const isChoice = question.type === "single" || question.type === "multi" || question.type === "boolean";
+  const isChoice =
+    question.type === "single" ||
+    question.type === "multi" ||
+    question.type === "boolean" ||
+    question.type === "image";
   const imagePreview = question.image
     ? `<img class="image-preview" src="${escapeHtml(question.image)}" alt="Prévia da imagem" />`
     : "";
@@ -431,7 +451,7 @@ function renderQuestion(question, index) {
       <div class="question-editor-heading">
         <div>
           <span class="question-index">Pergunta ${index + 1}</span>
-          <span class="question-type-label">${question.type === "single" ? "Múltipla escolha" : question.type === "multi" ? "Múltipla seleção" : question.type === "boolean" ? "Verdadeiro ou falso" : question.type === "short" ? "Texto curto" : "Texto longo"}</span>
+          <span class="question-type-label">${question.type === "single" ? "Múltipla escolha" : question.type === "multi" ? "Múltipla seleção" : question.type === "boolean" ? "Verdadeiro ou falso" : question.type === "image" ? "Imagem" : question.type === "short" ? "Texto curto" : "Texto longo"}</span>
         </div>
         <div class="question-order-actions">
           <button type="button" class="small-button icon-order-button" data-action="move-question-up" aria-label="Subir pergunta ${index + 1}" title="Subir pergunta" ${index === 0 ? "disabled" : ""}>↑</button>
@@ -447,6 +467,7 @@ function renderQuestion(question, index) {
             <option value="single" ${question.type === "single" ? "selected" : ""}>Múltipla escolha</option>
             <option value="multi" ${question.type === "multi" ? "selected" : ""}>Múltipla seleção</option>
             <option value="boolean" ${question.type === "boolean" ? "selected" : ""}>Verdadeiro ou falso</option>
+            <option value="image" ${question.type === "image" ? "selected" : ""}>Imagem</option>
             <option value="short" ${question.type === "short" ? "selected" : ""}>Texto curto</option>
             <option value="long" ${question.type === "long" ? "selected" : ""}>Texto longo</option>
           </select>
@@ -499,10 +520,13 @@ function renderQuestion(question, index) {
 function renderOption(question, option, optionIndex) {
   const correctName = `correct-${question.id}`;
   const checked =
-    question.type === "single" || question.type === "boolean"
+    question.type === "single" || question.type === "boolean" || question.type === "image"
       ? String(question.correct) === String(optionIndex)
       : Array.isArray(question.correct) && question.correct.map(String).includes(String(optionIndex));
-  const inputType = question.type === "single" || question.type === "boolean" ? "radio" : "checkbox";
+  const inputType =
+    question.type === "single" || question.type === "boolean" || question.type === "image"
+      ? "radio"
+      : "checkbox";
   const fixedOption = question.type === "boolean";
 
   return `
@@ -524,7 +548,7 @@ function collectExamForm() {
     const options = rows.map((row) => row.querySelector('[data-field="option"]').value);
 
     let correct = "";
-    if (type === "single" || type === "boolean") {
+    if (type === "single" || type === "boolean" || type === "image") {
       const selected = rows.find((row) => row.querySelector('[data-field="correct"]')?.checked);
       correct = selected?.dataset.optionIndex ?? "";
     } else if (type === "multi") {
@@ -558,10 +582,12 @@ function ensureChoiceQuestion(question) {
   if (question.type === "boolean") {
     question.options = ["Verdadeiro", "Falso"];
     if (Array.isArray(question.correct)) question.correct = "";
-  } else if (question.type === "single" || question.type === "multi") {
+  } else if (question.type === "single" || question.type === "multi" || question.type === "image") {
     while (question.options.length < 2) question.options.push("");
     if (question.type === "multi" && !Array.isArray(question.correct)) question.correct = [];
-    if (question.type === "single" && Array.isArray(question.correct)) question.correct = "";
+    if ((question.type === "single" || question.type === "image") && Array.isArray(question.correct)) {
+      question.correct = "";
+    }
   }
   return question;
 }
@@ -578,7 +604,7 @@ function sanitizeQuestion(question, questionIndex) {
   });
 
   let correct = "";
-  if (question.type === "single" || question.type === "boolean") {
+  if (question.type === "single" || question.type === "boolean" || question.type === "image") {
     correct = optionMap.get(String(question.correct)) ?? "";
   } else if (question.type === "multi") {
     correct = (Array.isArray(question.correct) ? question.correct : [])
@@ -597,14 +623,23 @@ function sanitizeQuestion(question, questionIndex) {
   if (clean.type === "boolean") clean.options = ["Verdadeiro", "Falso"];
 
   if (!clean.prompt) throw new Error(`Escreva o texto da pergunta ${questionIndex + 1}.`);
-  if ((clean.type === "single" || clean.type === "multi" || clean.type === "boolean") && clean.options.length < 2) {
+  if (
+    (clean.type === "single" || clean.type === "multi" || clean.type === "boolean" || clean.type === "image") &&
+    clean.options.length < 2
+  ) {
     throw new Error(`Adicione pelo menos duas alternativas na pergunta ${questionIndex + 1}.`);
   }
-  if ((clean.type === "single" || clean.type === "boolean") && clean.correct === "") {
+  if (
+    (clean.type === "single" || clean.type === "boolean" || clean.type === "image") &&
+    clean.correct === ""
+  ) {
     throw new Error(`Marque a resposta correta da pergunta ${questionIndex + 1}.`);
   }
   if (clean.type === "multi" && clean.correct.length === 0) {
     throw new Error(`Marque ao menos uma resposta correta na pergunta ${questionIndex + 1}.`);
+  }
+  if (clean.type === "image" && !clean.image) {
+    throw new Error(`Informe a imagem da pergunta ${questionIndex + 1}.`);
   }
   return clean;
 }
@@ -630,7 +665,7 @@ function handleQuestionClick(event) {
     const optionIndex = Number(button.closest(".option-row").dataset.optionIndex);
     const question = state.currentExam.questions[questionIndex];
     question.options.splice(optionIndex, 1);
-    if (question.type === "single") {
+    if (question.type === "single" || question.type === "image") {
       if (question.correct !== "") {
         const selected = Number(question.correct);
         question.correct = selected === optionIndex ? "" : String(selected > optionIndex ? selected - 1 : selected);
@@ -804,7 +839,7 @@ function renderGroupResponses(container, group, submissions) {
 }
 
 function answerText(answer, question) {
-  if (question.type === "single" || question.type === "boolean") {
+  if (question.type === "single" || question.type === "boolean" || question.type === "image") {
     if (answer === "" || answer == null) return "Sem resposta";
     return question.options[Number(answer)] || "Sem resposta";
   }
@@ -816,7 +851,7 @@ function answerText(answer, question) {
 }
 
 function correctText(question) {
-  if (question.type === "single" || question.type === "boolean") {
+  if (question.type === "single" || question.type === "boolean" || question.type === "image") {
     if (question.correct === "" || question.correct == null) return "Sem gabarito";
     return question.options[Number(question.correct)] || "Sem gabarito";
   }
@@ -830,7 +865,12 @@ function correctText(question) {
 }
 
 function hasAutomaticCorrectAnswer(question) {
-  return question.type === "single" || question.type === "multi" || question.type === "boolean";
+  return (
+    question.type === "single" ||
+    question.type === "multi" ||
+    question.type === "boolean" ||
+    question.type === "image"
+  );
 }
 
 async function openSubmission(id) {
@@ -873,6 +913,71 @@ async function copyExamLink(exam, button) {
   }, 1500);
 }
 
+function showToast(message) {
+  if (toastTimer) window.clearTimeout(toastTimer);
+  adminToast.textContent = message;
+  adminToast.classList.remove("hidden");
+  toastTimer = window.setTimeout(() => adminToast.classList.add("hidden"), 3200);
+}
+
+function openImportExamDialog() {
+  setMessage(importExamMessage, "");
+  importExamDialog.showModal();
+  importExamText.focus();
+}
+
+function closeImportExamDialog() {
+  importExamDialog.close();
+  setMessage(importExamMessage, "");
+}
+
+async function copyExamTemplate() {
+  try {
+    await writeClipboardText(ExamTextParser.OFFICIAL_TEMPLATE);
+    const original = copyExamTemplateButton.textContent;
+    copyExamTemplateButton.textContent = "Modelo copiado";
+    window.setTimeout(() => {
+      copyExamTemplateButton.textContent = original;
+    }, 1600);
+  } catch (error) {
+    setMessage(importExamMessage, "Não foi possível copiar o modelo.", "error");
+  }
+}
+
+function downloadExamTemplate() {
+  const file = new Blob([ExamTextParser.OFFICIAL_TEMPLATE], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "modelo-prova-gincana.txt";
+  (importExamDialog.open ? importExamDialog : document.body).append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function importExamFromText(event) {
+  event.preventDefault();
+  setMessage(importExamMessage, "Validando prova...");
+  submitImportButton.disabled = true;
+
+  try {
+    if (!window.ExamTextParser) throw new Error("O importador não foi carregado.");
+    const exam = ExamTextParser.parseExam(importExamText.value);
+    setMessage(importExamMessage, "Salvando prova...");
+    const savedExam = await GincanaDB.saveExam(exam);
+    await loadExams();
+    importExamDialog.close();
+    importExamText.value = "";
+    navigateToExamDetail(savedExam.id);
+    showToast("Prova importada com sucesso.");
+  } catch (error) {
+    setMessage(importExamMessage, error.message, "error");
+  } finally {
+    submitImportButton.disabled = false;
+  }
+}
+
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   setMessage(loginMessage, "Entrando...");
@@ -911,6 +1016,7 @@ tabs.forEach((tab) => {
 scoresForm.addEventListener("submit", saveScores);
 copyScoresButton.addEventListener("click", copyAdminScores);
 newExamButton.addEventListener("click", () => navigateToExamEditor());
+importExamButton.addEventListener("click", openImportExamDialog);
 backDetailButton.addEventListener("click", () => navigateToExamList());
 backEditorButton.addEventListener("click", () => navigateToExamList());
 backResponsesButton.addEventListener("click", () => navigateToExamDetail(state.currentExam.id));
@@ -954,6 +1060,11 @@ examResponsesPanel.addEventListener("click", (event) => {
 });
 
 closeDialogButton.addEventListener("click", () => dialog.close());
+importExamForm.addEventListener("submit", importExamFromText);
+closeImportDialogButton.addEventListener("click", closeImportExamDialog);
+cancelImportButton.addEventListener("click", closeImportExamDialog);
+copyExamTemplateButton.addEventListener("click", copyExamTemplate);
+downloadExamTemplateButton.addEventListener("click", downloadExamTemplate);
 window.addEventListener("popstate", () => {
   if (localStorage.getItem(ADMIN_SESSION_KEY) === "authenticated") applyRoute();
 });

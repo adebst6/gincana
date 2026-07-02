@@ -29,6 +29,7 @@ function mapExam(row, stats = {}) {
     title: row.title,
     description: row.description || "",
     active: row.active !== false,
+    timeLimitMinutes: Number(row.time_limit_minutes || 0),
     questions: Array.isArray(row.questions) ? row.questions : [],
     createdAt: row.created_at,
     publicUrl: publicExamUrl(row.id),
@@ -120,6 +121,7 @@ async function saveExam(exam) {
     title: exam.title,
     description: exam.description || "",
     active: exam.active !== false,
+    time_limit_minutes: Math.max(0, Math.floor(Number(exam.timeLimitMinutes || 0))),
     questions: Array.isArray(exam.questions) ? exam.questions : [],
   };
 

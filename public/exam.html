@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gincana Online | Prova</title>
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/styles.css?v=6" />
   </head>
   <body class="exam-page">
     <main class="exam-shell">
@@ -36,6 +36,7 @@
             Sair da aba, perder foco da janela, copiar, colar ou abrir o menu do botão direito
             pode ser registrado durante a prova.
           </p>
+          <p id="time-limit-notice" class="notice time-limit-notice hidden"></p>
           <button type="submit" class="primary-button">Começar prova</button>
         </form>
       </section>
@@ -44,6 +45,7 @@
         <div class="exam-progress" aria-live="polite">
           <div class="progress-meta">
             <span id="progress-label">Pergunta 1 de 1</span>
+            <span id="timer-display" class="timer-display hidden">00:00</span>
             <span id="progress-percent">0%</span>
           </div>
           <div class="progress-track" aria-hidden="true">
@@ -95,7 +97,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/assets/supabase.js"></script>
-    <script src="/assets/exam.js"></script>
+    <script src="/assets/supabase.js?v=2"></script>
+    <script src="/assets/exam.js?v=3"></script>
   </body>
 </html>

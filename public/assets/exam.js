@@ -13,9 +13,11 @@ const questionsView = document.querySelector("#questions-view");
 const publicExamForm = document.querySelector("#public-exam-form");
 const examMessage = document.querySelector("#exam-message");
 const warningBanner = document.querySelector("#warning-banner");
+const timeLimitNotice = document.querySelector("#time-limit-notice");
 const progressLabel = document.querySelector("#progress-label");
 const progressPercent = document.querySelector("#progress-percent");
 const progressFill = document.querySelector("#progress-fill");
+const timerDisplay = document.querySelector("#timer-display");
 const prevQuestionButton = document.querySelector("#prev-question-button");
 const nextQuestionButton = document.querySelector("#next-question-button");
 const submitExamButton = document.querySelector("#submit-exam-button");
@@ -31,6 +33,10 @@ let currentQuestionIndex = 0;
 let focusLosses = 0;
 let lastLossAt = 0;
 let guardsActive = false;
+let timerDeadline = null;
+let timerInterval = null;
+let timeExpired = false;
+let isSubmitting = false;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -44,6 +50,16 @@ function escapeHtml(value) {
 function formatScore(value) {
   const number = Number(value || 0);
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
+}
+
+function formatCountdown(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatTimeLimit(minutes) {
+  return `${minutes} ${minutes === 1 ? "minuto" : "minutos"}`;
 }
 
 function setMessage(message, type = "") {
@@ -64,6 +80,10 @@ async function loadExam() {
     document.title = `Gincana Online | ${currentExam.title}`;
     examTitle.textContent = currentExam.title;
     examDescription.textContent = currentExam.description || "";
+    if (currentExam.timeLimitMinutes > 0) {
+      timeLimitNotice.textContent = `Tempo limite: ${formatTimeLimit(currentExam.timeLimitMinutes)}. Ao terminar, as respostas serão enviadas automaticamente.`;
+      timeLimitNotice.classList.remove("hidden");
+    }
     renderQuestions();
     updateQuestionView();
     showOnly(startView);
@@ -107,7 +127,7 @@ function renderQuestion(question, index) {
 }
 
 function renderAnswerField(question) {
-  if (question.type === "single") {
+  if (question.type === "single" || question.type === "boolean" || question.type === "image") {
     return `
       <div class="answer-options">
         ${question.options
@@ -240,6 +260,42 @@ function activateGuards() {
 function deactivateGuards() {
   guardsActive = false;
   document.body.classList.remove("exam-active");
+  stopTimer();
+}
+
+function stopTimer() {
+  if (timerInterval) window.clearInterval(timerInterval);
+  timerInterval = null;
+  timerDeadline = null;
+}
+
+function updateTimer() {
+  if (!timerDeadline) return;
+  const remainingSeconds = Math.max(0, Math.ceil((timerDeadline - Date.now()) / 1000));
+  timerDisplay.textContent = formatCountdown(remainingSeconds);
+  timerDisplay.classList.toggle("warning", remainingSeconds <= 60);
+
+  if (remainingSeconds === 0) {
+    if (timerInterval) window.clearInterval(timerInterval);
+    timerInterval = null;
+    timeExpired = true;
+    setMessage("Tempo esgotado. Enviando respostas...");
+    submitExam();
+  }
+}
+
+function startTimer() {
+  const minutes = Number(currentExam.timeLimitMinutes || 0);
+  if (minutes <= 0) {
+    timerDisplay.classList.add("hidden");
+    return;
+  }
+
+  timeExpired = false;
+  timerDeadline = Date.now() + minutes * 60 * 1000;
+  timerDisplay.classList.remove("hidden");
+  updateTimer();
+  timerInterval = window.setInterval(updateTimer, 250);
 }
 
 async function startExam(event) {
@@ -250,11 +306,11 @@ async function startExam(event) {
     await document.documentElement.requestFullscreen().catch(() => {});
   }
 
-  // Futuro: adicionar tempo limite por prova e salvar duração total do participante.
   currentQuestionIndex = 0;
   activateGuards();
   showOnly(examView);
   updateQuestionView();
+  startTimer();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -264,7 +320,7 @@ function collectAnswers() {
     const qid = block.dataset.questionId;
     const type = block.dataset.type;
 
-    if (type === "single") {
+    if (type === "single" || type === "boolean" || type === "image") {
       const selected = block.querySelector('input[type="radio"]:checked');
       answers[qid] = selected ? selected.value : "";
     } else if (type === "multi") {
@@ -292,7 +348,7 @@ function scoreAnswers(rawAnswers) {
     let awarded = 0;
 
     if (
-      question.type === "single" &&
+      (question.type === "single" || question.type === "boolean" || question.type === "image") &&
       answer !== "" &&
       question.correct !== "" &&
       String(answer) === String(question.correct)
@@ -334,8 +390,10 @@ function createConfetti() {
 }
 
 async function submitExam(event) {
-  event.preventDefault();
-  setMessage("Enviando...");
+  event?.preventDefault();
+  if (isSubmitting) return;
+  isSubmitting = true;
+  setMessage(timeExpired ? "Tempo esgotado. Enviando respostas..." : "Enviando...");
   submitExamButton.disabled = true;
 
   try {
@@ -360,6 +418,7 @@ async function submitExam(event) {
     createConfetti();
     showOnly(successView);
   } catch (error) {
+    isSubmitting = false;
     submitExamButton.disabled = false;
     setMessage(error.message, "error");
   }

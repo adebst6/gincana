@@ -8,6 +8,7 @@ MVP estatico para gincana de igreja. A Vercel entrega somente HTML, CSS e JavaSc
 - `public/admin.html`: painel administrativo.
 - `public/exam.html`: prova publica.
 - `public/assets/supabase.js`: configuracao e operacoes de banco.
+- `public/assets/parser.js`: parser deterministico para importar provas pelo formato oficial de texto.
 - `supabase/schema.sql`: tabelas, migracao do schema antigo e permissoes.
 - `vercel.json`: diretorio estatico e rewrites amigaveis.
 
@@ -65,9 +66,11 @@ Nao configure `DATABASE_URL`, runtime Python ou Function. Tambem nao e necessari
 - Placar Meninos/Meninas com polling a cada 5 segundos e barras animadas.
 - Edicao do placar no ADM.
 - Criacao, edicao, ativacao e exclusao de provas.
-- Questoes de escolha unica, multipla selecao, texto curto e texto longo.
+- Importacao de provas por texto, com validacao por linha e modelo copiavel ou baixavel.
+- Questoes de escolha unica, multipla selecao, verdadeiro ou falso, texto curto e texto longo.
 - Imagem opcional por URL ou data URL.
 - Uma pergunta por vez, progresso, protecoes basicas e contagem de saidas da aba.
+- Tempo limite opcional por prova, com envio automatico ao encerrar.
 - Correcao automatica das questoes objetivas.
 - Respostas agrupadas por prova e por grupo, com resumo e detalhes.
 

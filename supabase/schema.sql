@@ -43,9 +43,14 @@ CREATE TABLE IF NOT EXISTS public.exams (
     title TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    time_limit_minutes INTEGER NOT NULL DEFAULT 0 CHECK (time_limit_minutes >= 0),
     questions JSONB NOT NULL DEFAULT '[]'::JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.exams
+ADD COLUMN IF NOT EXISTS time_limit_minutes INTEGER NOT NULL DEFAULT 0
+CHECK (time_limit_minutes >= 0);
 
 CREATE TABLE IF NOT EXISTS public.submissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
