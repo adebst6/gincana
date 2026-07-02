@@ -1,15 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "{public/**,supabase/**}"
-    }
-  },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.py"
-    }
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/exam/:id", "destination": "/exam.html?id=:id" },
+    { "source": "/prova/:id", "destination": "/exam.html?id=:id" }
   ]
 }

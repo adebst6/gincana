@@ -24,7 +24,8 @@ const successName = document.querySelector("#success-name");
 const successGroup = document.querySelector("#success-group");
 const successScore = document.querySelector("#success-score");
 
-const slug = decodeURIComponent(window.location.pathname.split("/").filter(Boolean).pop() || "");
+const pathMatch = window.location.pathname.match(/^\/(?:exam|prova)\/([^/]+)\/?$/);
+const examId = new URLSearchParams(window.location.search).get("id") || pathMatch?.[1] || "";
 let currentExam = null;
 let currentQuestionIndex = 0;
 let focusLosses = 0;
@@ -57,14 +58,9 @@ function showOnly(section) {
 
 async function loadExam() {
   try {
-    const response = await fetch(`/api/public/exams/${encodeURIComponent(slug)}`, {
-      cache: "no-store",
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "Prova indisponível.");
-    }
-    currentExam = payload.exam;
+    if (!examId) throw new Error("Link da prova incompleto.");
+    currentExam = await GincanaDB.getActiveExam(decodeURIComponent(examId));
+    if (!currentExam) throw new Error("Prova indisponível ou inativa.");
     document.title = `Gincana Online | ${currentExam.title}`;
     examTitle.textContent = currentExam.title;
     examDescription.textContent = currentExam.description || "";
@@ -282,6 +278,47 @@ function collectAnswers() {
   return answers;
 }
 
+function exactMultiMatch(answer, correct) {
+  if (!Array.isArray(answer) || !Array.isArray(correct) || !correct.length) return false;
+  const answerSet = new Set(answer.map(String));
+  const correctSet = new Set(correct.map(String));
+  return answerSet.size === correctSet.size && [...answerSet].every((value) => correctSet.has(value));
+}
+
+function scoreAnswers(rawAnswers) {
+  let score = 0;
+  const answers = currentExam.questions.map((question) => {
+    const answer = rawAnswers[question.id] ?? (question.type === "multi" ? [] : "");
+    let awarded = 0;
+
+    if (
+      question.type === "single" &&
+      answer !== "" &&
+      question.correct !== "" &&
+      String(answer) === String(question.correct)
+    ) {
+      awarded = Number(question.points || 0);
+    }
+    if (question.type === "multi" && exactMultiMatch(answer, question.correct)) {
+      awarded = Number(question.points || 0);
+    }
+
+    score += awarded;
+    return {
+      id: question.id,
+      type: question.type,
+      prompt: question.prompt,
+      options: question.options || [],
+      correct: question.correct,
+      points: Number(question.points || 0),
+      answer,
+      awarded,
+    };
+  });
+
+  return { score, answers };
+}
+
 function createConfetti() {
   const colors = ["#63aaf7", "#ff86ae", "#f8d65d", "#73d9a2"];
   confettiLayer.innerHTML = "";
@@ -302,20 +339,15 @@ async function submitExam(event) {
   submitExamButton.disabled = true;
 
   try {
-    const response = await fetch(`/api/public/exams/${encodeURIComponent(slug)}/submissions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: participantName.value.trim(),
-        group: participantGroup.value,
-        answers: collectAnswers(),
-        focusLosses,
-      }),
+    const result = scoreAnswers(collectAnswers());
+    await GincanaDB.createSubmission({
+      examId: currentExam.id,
+      participantName: participantName.value.trim(),
+      groupName: participantGroup.value,
+      answers: result.answers,
+      score: result.score,
+      tabLeaveCount: focusLosses,
     });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "Não foi possível enviar.");
-    }
 
     deactivateGuards();
     if (document.fullscreenElement) {
@@ -324,7 +356,7 @@ async function submitExam(event) {
 
     successName.textContent = participantName.value.trim();
     successGroup.textContent = participantGroup.value;
-    successScore.textContent = formatScore(payload.autoScore);
+    successScore.textContent = formatScore(result.score);
     createConfetti();
     showOnly(successView);
   } catch (error) {

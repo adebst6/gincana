@@ -14,8 +14,8 @@ function formatPercent(value) {
 }
 
 function applyScores(payload) {
-  const boys = Number(payload.scores.Meninos || 0);
-  const girls = Number(payload.scores.Meninas || 0);
+  const boys = Number(payload.boysPoints || 0);
+  const girls = Number(payload.girlsPoints || 0);
   const total = boys + girls;
   const boysShare = total > 0 ? (boys / total) * 100 : 0;
   const girlsShare = total > 0 ? (girls / total) * 100 : 0;
@@ -46,15 +46,12 @@ function pulseCard(card) {
 
 async function loadScores() {
   try {
-    const response = await fetch("/api/scores", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Falha ao carregar a pontuação.");
-    }
-    applyScores(await response.json());
+    applyScores(await GincanaDB.getScores());
   } catch (error) {
+    console.error(error);
     lastUpdate.textContent = "Não foi possível atualizar agora.";
   }
 }
 
 loadScores();
-setInterval(loadScores, 3000);
+setInterval(loadScores, 5000);

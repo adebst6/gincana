@@ -42,6 +42,8 @@ const state = {
   currentExam: null,
   currentExamSubmissions: [],
 };
+const ADMIN_PASSWORD = "gincana123";
+const ADMIN_SESSION_KEY = "gincana_admin_session";
 
 function uid() {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -67,19 +69,6 @@ function setMessage(element, message, type = "") {
   element.className = `form-message ${type}`.trim();
 }
 
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || "Algo deu errado.");
-  }
-  return payload;
-}
-
 function showAdmin() {
   loginView.classList.add("hidden");
   adminView.classList.remove("hidden");
@@ -96,8 +85,7 @@ function switchTab(name) {
 }
 
 async function checkSession() {
-  const payload = await api("/api/session");
-  if (payload.authenticated) {
+  if (localStorage.getItem(ADMIN_SESSION_KEY) === "authenticated") {
     showAdmin();
     await Promise.all([loadScores(), loadExams()]);
     resetExamForm();
@@ -107,21 +95,18 @@ async function checkSession() {
 }
 
 async function loadScores() {
-  const payload = await api("/api/scores");
-  scoreBoys.value = payload.scores.Meninos || 0;
-  scoreGirls.value = payload.scores.Meninas || 0;
+  const scores = await GincanaDB.getScores();
+  scoreBoys.value = scores.boysPoints;
+  scoreGirls.value = scores.girlsPoints;
 }
 
 async function saveScores(event) {
   event.preventDefault();
   setMessage(scoresMessage, "Salvando...");
   try {
-    await api("/api/scores", {
-      method: "PUT",
-      body: JSON.stringify({
-        Meninos: scoreBoys.value,
-        Meninas: scoreGirls.value,
-      }),
+    await GincanaDB.saveScores({
+      boysPoints: scoreBoys.value,
+      girlsPoints: scoreGirls.value,
     });
     setMessage(scoresMessage, "Pontuação salva.", "ok");
   } catch (error) {
@@ -130,8 +115,7 @@ async function saveScores(event) {
 }
 
 async function loadExams() {
-  const payload = await api("/api/admin/exams");
-  state.exams = payload.exams;
+  state.exams = await GincanaDB.listExams();
   renderExamList();
 }
 
@@ -454,15 +438,9 @@ async function saveExam(event) {
       questions: state.currentExam.questions,
     };
     const id = state.currentExam.id;
-    const response = await api(id ? `/api/admin/exams/${id}` : "/api/admin/exams", {
-      method: id ? "PUT" : "POST",
-      body: JSON.stringify(payload),
-    });
-    state.exams = response.exams;
-    renderExamList();
-    const saved = id
-      ? state.exams.find((exam) => String(exam.id) === String(id))
-      : state.exams[0];
+    const savedExam = await GincanaDB.saveExam({ id, ...payload });
+    await loadExams();
+    const saved = state.exams.find((exam) => String(exam.id) === String(savedExam.id));
     if (saved) selectExam(saved.id);
     setMessage(examMessage, "Prova salva. Link público gerado na lista ao lado.", "ok");
   } catch (error) {
@@ -474,12 +452,11 @@ async function deleteCurrentExam() {
   collectExamForm();
   const id = state.currentExam.id;
   if (!id) return;
-  if (!confirm("Apagar esta prova? Provas com respostas não podem ser apagadas.")) return;
+  if (!confirm("Apagar esta prova e todas as respostas dela?")) return;
 
   try {
-    const response = await api(`/api/admin/exams/${id}`, { method: "DELETE" });
-    state.exams = response.exams;
-    renderExamList();
+    await GincanaDB.deleteExam(id);
+    await loadExams();
     resetExamForm();
     setMessage(examMessage, "Prova apagada.", "ok");
   } catch (error) {
@@ -510,9 +487,8 @@ async function loadExamResponses(examId = state.currentExam?.id) {
   boysResponsesList.innerHTML = `<p class="form-message">Carregando...</p>`;
 
   try {
-    const payload = await api(`/api/admin/submissions?exam_id=${encodeURIComponent(examId)}`);
-    state.currentExamSubmissions = payload.submissions;
-    renderExamResponses(payload.submissions);
+    state.currentExamSubmissions = await GincanaDB.listSubmissions(examId);
+    renderExamResponses(state.currentExamSubmissions);
   } catch (error) {
     examResponsesSubtitle.textContent = error.message;
     girlsResponsesList.innerHTML = `<p class="form-message error">${escapeHtml(error.message)}</p>`;
@@ -604,8 +580,8 @@ function hasAutomaticCorrectAnswer(question) {
 }
 
 async function openSubmission(id) {
-  const payload = await api(`/api/admin/submissions/${id}`);
-  const submission = payload.submission;
+  const submission = await GincanaDB.getSubmission(id);
+  submission.examTitle = state.currentExam?.title || "Prova";
   detailTitle.textContent = `${submission.name} - ${submission.examTitle}`;
   submissionDetail.innerHTML = `
     <div class="summary-row">
@@ -641,22 +617,24 @@ async function openSubmission(id) {
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   setMessage(loginMessage, "Entrando...");
+  if (document.querySelector("#password").value !== ADMIN_PASSWORD) {
+    setMessage(loginMessage, "Senha incorreta.", "error");
+    return;
+  }
+
+  localStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
+  setMessage(loginMessage, "");
+  showAdmin();
   try {
-    await api("/api/login", {
-      method: "POST",
-      body: JSON.stringify({ password: document.querySelector("#password").value }),
-    });
-    setMessage(loginMessage, "");
-    showAdmin();
     await Promise.all([loadScores(), loadExams()]);
     resetExamForm();
   } catch (error) {
-    setMessage(loginMessage, error.message, "error");
+    setMessage(scoresMessage, error.message, "error");
   }
 });
 
-logoutButton.addEventListener("click", async () => {
-  await api("/api/logout", { method: "POST", body: "{}" });
+logoutButton.addEventListener("click", () => {
+  localStorage.removeItem(ADMIN_SESSION_KEY);
   showLogin();
 });
 
@@ -705,7 +683,11 @@ refreshExamResponsesButton.addEventListener("click", () => loadExamResponses());
 
 examResponsesPanel.addEventListener("click", (event) => {
   const button = event.target.closest('[data-action="open-submission"]');
-  if (button) openSubmission(button.dataset.id);
+  if (button) {
+    openSubmission(button.dataset.id).catch((error) => {
+      examResponsesSubtitle.textContent = error.message;
+    });
+  }
 });
 
 closeDialogButton.addEventListener("click", () => dialog.close());
