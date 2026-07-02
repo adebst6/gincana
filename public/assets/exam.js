@@ -364,7 +364,10 @@ function captureMonitoringSnapshot(kind = "interval") {
     return false;
   }
 
-  const scale = Math.min(480 / cameraPreview.videoWidth, 360 / cameraPreview.videoHeight, 1);
+  const portrait = cameraPreview.videoHeight > cameraPreview.videoWidth;
+  const maxWidth = portrait ? 720 : 960;
+  const maxHeight = portrait ? 960 : 720;
+  const scale = Math.min(maxWidth / cameraPreview.videoWidth, maxHeight / cameraPreview.videoHeight, 1);
   const width = Math.round(cameraPreview.videoWidth * scale);
   const height = Math.round(cameraPreview.videoHeight * scale);
   cameraCanvas.width = width;
@@ -376,7 +379,7 @@ function captureMonitoringSnapshot(kind = "interval") {
   const snapshot = {
     capturedAt: new Date().toISOString(),
     kind,
-    image: cameraCanvas.toDataURL("image/jpeg", 0.55),
+    image: cameraCanvas.toDataURL("image/jpeg", 0.72),
   };
 
   if (kind === "final" && monitoringSnapshots.length >= MAX_MONITORING_SNAPSHOTS) {

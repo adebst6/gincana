@@ -23,3 +23,16 @@ test("paginas carregam a versao atual do cliente Supabase", () => {
     assert.match(readProjectFile(page), /\/assets\/supabase\.js\?v=5/);
   }
 });
+
+test("galeria de monitoramento preserva fotos verticais", () => {
+  const styles = readProjectFile("public/assets/styles.css");
+  const admin = readProjectFile("public/admin.html");
+  const exam = readProjectFile("public/exam.html");
+
+  assert.match(styles, /\.monitoring-photo img\s*\{[^}]*object-fit:\s*contain;/);
+  assert.doesNotMatch(styles, /\.monitoring-photo img\s*\{[^}]*object-fit:\s*cover;/);
+  assert.match(admin, /\/assets\/styles\.css\?v=11/);
+  assert.match(admin, /\/assets\/admin\.js\?v=10/);
+  assert.match(exam, /\/assets\/styles\.css\?v=11/);
+  assert.match(exam, /\/assets\/exam\.js\?v=5/);
+});

@@ -963,10 +963,15 @@ function renderMonitoringGallery(submission) {
           .map(
             (snapshot, index) => `
               <figure class="monitoring-photo">
-                <img src="${escapeHtml(snapshot.image)}" alt="Foto de monitoramento ${index + 1}" loading="lazy" />
+                <a class="monitoring-photo-link" href="${escapeHtml(snapshot.image)}" target="_blank" rel="noopener" title="Abrir foto maior">
+                  <img src="${escapeHtml(snapshot.image)}" alt="Foto de monitoramento ${index + 1}" loading="eager" decoding="async" />
+                </a>
                 <figcaption>
-                  ${new Date(snapshot.capturedAt).toLocaleString("pt-BR")}
-                  ${snapshot.kind === "start" ? " · Início" : snapshot.kind === "final" ? " · Final" : ""}
+                  <span>
+                    ${new Date(snapshot.capturedAt).toLocaleString("pt-BR")}
+                    ${snapshot.kind === "start" ? " · Início" : snapshot.kind === "final" ? " · Final" : ""}
+                  </span>
+                  <span>Abrir maior</span>
                 </figcaption>
               </figure>
             `
