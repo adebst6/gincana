@@ -75,6 +75,9 @@ const submissionDetail = document.querySelector("#submission-detail");
 const importExamDialog = document.querySelector("#import-exam-dialog");
 const importExamForm = document.querySelector("#import-exam-form");
 const importExamText = document.querySelector("#import-exam-text");
+const importCameraMonitoring = document.querySelector("#import-camera-monitoring");
+const importCameraIntervalField = document.querySelector("#import-camera-interval-field");
+const importCameraInterval = document.querySelector("#import-camera-interval");
 const importExamMessage = document.querySelector("#import-exam-message");
 const closeImportDialogButton = document.querySelector("#close-import-dialog-button");
 const cancelImportButton = document.querySelector("#cancel-import-button");
@@ -112,6 +115,11 @@ function escapeHtml(value) {
 function formatNumber(value) {
   const number = Number(value || 0);
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
+}
+
+function normalizeCameraInterval(value) {
+  const interval = Number(value || 60);
+  return [30, 60, 120].includes(interval) ? interval : 60;
 }
 
 function setMessage(element, message, type = "") {
@@ -434,10 +442,32 @@ function renderExamForm() {
   renderQuestions();
 }
 
+function editorCameraSettings() {
+  const enabled = examCameraMonitoring.checked === true;
+  return {
+    cameraMonitoring: enabled,
+    cameraIntervalSeconds: enabled ? normalizeCameraInterval(examCameraInterval.value) : 60,
+  };
+}
+
+function importCameraSettings() {
+  const enabled = importCameraMonitoring.checked === true;
+  return {
+    cameraMonitoring: enabled,
+    cameraIntervalSeconds: enabled ? normalizeCameraInterval(importCameraInterval.value) : 60,
+  };
+}
+
 function syncCameraSettings() {
   const enabled = examCameraMonitoring.checked;
   examCameraIntervalField.classList.toggle("hidden", !enabled);
   examCameraInterval.disabled = !enabled;
+}
+
+function syncImportCameraSettings() {
+  const enabled = importCameraMonitoring.checked;
+  importCameraIntervalField.classList.toggle("hidden", !enabled);
+  importCameraInterval.disabled = !enabled;
 }
 
 function renderQuestions() {
@@ -589,14 +619,15 @@ function collectExamForm() {
     };
   });
 
+  const cameraSettings = editorCameraSettings();
   state.currentExam = {
     id: examId.value,
     title: examTitle.value,
     description: examDescription.value,
     active: examActive.checked,
     timeLimitMinutes: Math.max(0, Math.floor(Number(examTimeLimit.value || 0))),
-    cameraMonitoring: examCameraMonitoring.checked,
-    cameraIntervalSeconds: Number(examCameraInterval.value || 60),
+    cameraMonitoring: cameraSettings.cameraMonitoring,
+    cameraIntervalSeconds: cameraSettings.cameraIntervalSeconds,
     questions,
   };
 }
@@ -748,13 +779,14 @@ async function saveExam(event) {
   setMessage(examMessage, "Salvando...");
 
   try {
+    const cameraSettings = editorCameraSettings();
     const payload = {
       title: state.currentExam.title.trim(),
       description: state.currentExam.description.trim(),
       active: state.currentExam.active,
       timeLimitMinutes: state.currentExam.timeLimitMinutes,
-      cameraMonitoring: state.currentExam.cameraMonitoring,
-      cameraIntervalSeconds: state.currentExam.cameraIntervalSeconds,
+      cameraMonitoring: cameraSettings.cameraMonitoring,
+      cameraIntervalSeconds: cameraSettings.cameraIntervalSeconds,
       questions: state.currentExam.questions.map(sanitizeQuestion),
     };
     const savedExam = await GincanaDB.saveExam({ id: state.currentExam.id, ...payload });
@@ -1021,6 +1053,7 @@ function showToast(message) {
 
 function openImportExamDialog() {
   setMessage(importExamMessage, "");
+  syncImportCameraSettings();
   importExamDialog.showModal();
   importExamText.focus();
 }
@@ -1062,7 +1095,10 @@ async function importExamFromText(event) {
 
   try {
     if (!window.ExamTextParser) throw new Error("O importador não foi carregado.");
-    const exam = ExamTextParser.parseExam(importExamText.value);
+    const exam = {
+      ...ExamTextParser.parseExam(importExamText.value),
+      ...importCameraSettings(),
+    };
     setMessage(importExamMessage, "Salvando prova...");
     const savedExam = await GincanaDB.saveExam(exam);
     await loadExams();
@@ -1134,6 +1170,7 @@ questionsEditor.addEventListener("click", handleQuestionClick);
 questionsEditor.addEventListener("change", handleQuestionChange);
 examForm.addEventListener("submit", saveExam);
 examCameraMonitoring.addEventListener("change", syncCameraSettings);
+importCameraMonitoring.addEventListener("change", syncImportCameraSettings);
 deleteExamButton.addEventListener("click", deleteCurrentExam);
 
 examList.addEventListener("click", async (event) => {

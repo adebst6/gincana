@@ -284,6 +284,7 @@
             <h2>Importar prova por texto</h2>
             <p class="import-exam-description">
               Cole abaixo uma prova gerada pelo ChatGPT utilizando o padrão oficial.
+              O monitoramento pode ser ativado antes de importar.
             </p>
           </div>
           <button id="close-import-dialog-button" type="button" class="ghost-button">Fechar</button>
@@ -300,6 +301,22 @@
             required
           ></textarea>
         </label>
+
+        <div class="import-exam-settings">
+          <label class="inline-check import-monitor-control">
+            <input id="import-camera-monitoring" type="checkbox" checked />
+            Importar com monitoramento por fotos
+          </label>
+          <label id="import-camera-interval-field">
+            Intervalo entre fotos
+            <select id="import-camera-interval">
+              <option value="30">30 segundos</option>
+              <option value="60" selected>60 segundos</option>
+              <option value="120">120 segundos</option>
+            </select>
+            <span class="field-hint">O participante ainda precisa autorizar a câmera antes de começar.</span>
+          </label>
+        </div>
 
         <p id="import-exam-message" class="form-message import-exam-message" aria-live="polite"></p>
 
@@ -320,7 +337,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/assets/supabase.js?v=4"></script>
-    <script src="/assets/parser.js?v=1"></script>
-    <script src="/assets/admin.js?v=8"></script>
+    <script src="/assets/parser.js?v=2"></script>
+    <script src="/assets/admin.js?v=9"></script>
   </body>
 </html>
