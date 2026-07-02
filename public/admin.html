@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gincana Online | ADM</title>
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/styles.css?v=3" />
   </head>
   <body class="admin-page">
     <main class="admin-shell">
@@ -59,63 +59,132 @@
         </section>
 
         <section id="tab-exams" class="tab-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Provas online</h2>
-              <p>Crie provas com link público individual.</p>
+          <section id="exam-list-view" class="exam-admin-view">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Provas</p>
+                <h2>Provas online</h2>
+                <p>Gerencie provas, links e respostas em um só lugar.</p>
+              </div>
+              <button id="new-exam-button" class="primary-button">+ Nova prova</button>
             </div>
-            <button id="new-exam-button" class="secondary-button">+ Nova prova</button>
-          </div>
+            <div id="exam-list" class="exam-list"></div>
+          </section>
 
-          <div class="exam-workspace">
-            <aside class="exam-list-panel">
-              <h3>Provas criadas</h3>
-              <div id="exam-list" class="exam-list"></div>
-            </aside>
+          <section id="exam-detail-view" class="exam-admin-view hidden">
+            <div class="exam-page-heading">
+              <button id="back-detail-button" type="button" class="ghost-button">← Voltar para provas</button>
+              <div class="exam-page-actions">
+                <button id="detail-edit-button" type="button" class="secondary-button">Editar prova</button>
+                <button id="detail-responses-button" type="button" class="primary-button">Ver respostas</button>
+              </div>
+            </div>
+
+            <section class="exam-detail-hero">
+              <div>
+                <p class="eyebrow">Detalhes da prova</p>
+                <h2 id="detail-exam-title">Prova</h2>
+                <p id="detail-exam-description" class="exam-detail-description"></p>
+              </div>
+              <span id="detail-exam-status" class="pill active">Ativa</span>
+            </section>
+
+            <div class="exam-detail-stats">
+              <div class="response-stat">
+                <span>Perguntas</span>
+                <strong id="detail-exam-questions">0</strong>
+              </div>
+              <div class="response-stat">
+                <span>Respostas</span>
+                <strong id="detail-exam-responses">0</strong>
+              </div>
+              <div class="response-stat boys">
+                <span>Pontos Meninos</span>
+                <strong id="detail-exam-boys">0</strong>
+              </div>
+              <div class="response-stat girls">
+                <span>Pontos Meninas</span>
+                <strong id="detail-exam-girls">0</strong>
+              </div>
+            </div>
+
+            <section class="public-link-panel">
+              <div>
+                <h3>Link público</h3>
+                <p>Compartilhe este endereço com os participantes.</p>
+              </div>
+              <div class="public-link-row">
+                <input id="detail-public-link" type="text" readonly aria-label="Link público da prova" />
+                <button id="detail-copy-link-button" type="button" class="secondary-button">Copiar link</button>
+                <a id="detail-open-link" class="ghost-link" href="#" target="_blank">Abrir prova</a>
+              </div>
+            </section>
+          </section>
+
+          <section id="exam-editor-view" class="exam-admin-view hidden">
+            <div class="exam-page-heading">
+              <div>
+                <button id="back-editor-button" type="button" class="ghost-button">← Voltar para provas</button>
+                <p class="eyebrow">Editor de prova</p>
+                <h2 id="editor-view-title">Nova prova</h2>
+              </div>
+            </div>
 
             <form id="exam-form" class="exam-editor">
               <input id="exam-id" type="hidden" />
-              <label>
-                Título
-                <input id="exam-title" type="text" required />
-              </label>
-              <label>
-                Descrição
-                <textarea id="exam-description" rows="3"></textarea>
-              </label>
-              <label class="inline-check">
-                <input id="exam-active" type="checkbox" checked />
-                Prova ativa
-              </label>
+              <section class="exam-basics">
+                <label>
+                  Título da prova
+                  <input id="exam-title" type="text" required />
+                </label>
+                <label>
+                  Descrição
+                  <textarea id="exam-description" rows="3"></textarea>
+                </label>
+                <label class="inline-check exam-status-control">
+                  <input id="exam-active" type="checkbox" checked />
+                  Prova ativa
+                </label>
+              </section>
 
               <div class="editor-bar">
-                <h3>Questões</h3>
+                <div>
+                  <p class="eyebrow">Conteúdo</p>
+                  <h3>Questões da prova</h3>
+                </div>
                 <button id="add-question-button" type="button" class="secondary-button">
-                  + Adicionar questão
+                  + Adicionar pergunta
                 </button>
               </div>
 
               <div id="questions-editor" class="questions-editor"></div>
 
-              <div class="form-actions">
-                <button type="submit" class="primary-button">Salvar prova</button>
-                <button id="delete-exam-button" type="button" class="danger-button hidden">
-                  Apagar prova
-                </button>
+              <div class="editor-save-bar">
+                <p id="exam-message" class="form-message"></p>
+                <div class="form-actions">
+                  <button id="delete-exam-button" type="button" class="danger-button hidden">Apagar prova</button>
+                  <button type="submit" class="primary-button">Salvar prova</button>
+                </div>
               </div>
-              <p id="exam-message" class="form-message"></p>
             </form>
+          </section>
 
-            <section id="exam-responses-panel" class="exam-responses-panel hidden">
+          <section id="exam-responses-view" class="exam-admin-view hidden">
+            <div class="exam-page-heading">
+              <button id="back-responses-button" type="button" class="ghost-button">← Voltar para prova</button>
+              <div class="exam-page-actions">
+                <button id="edit-from-responses-button" type="button" class="secondary-button">Editar prova</button>
+                <button id="refresh-exam-responses-button" type="button" class="secondary-button">Atualizar</button>
+              </div>
+            </div>
+
+            <section id="exam-responses-panel" class="exam-responses-panel">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">Respostas</p>
-                  <h2>Respostas desta prova</h2>
-                  <p id="exam-responses-subtitle">Selecione uma prova para ver os envios.</p>
+                  <p class="eyebrow">Respostas da prova</p>
+                  <h2 id="responses-exam-title">Respostas</h2>
+                  <p id="exam-responses-subtitle">Carregando envios...</p>
                 </div>
-                <button id="refresh-exam-responses-button" type="button" class="secondary-button">
-                  Atualizar
-                </button>
               </div>
 
               <div class="exam-response-summary">
@@ -148,7 +217,7 @@
                 </section>
               </div>
             </section>
-          </div>
+          </section>
         </section>
       </section>
     </main>

@@ -11,7 +11,30 @@ const scoreBoys = document.querySelector("#score-boys");
 const scoreGirls = document.querySelector("#score-girls");
 const scoresMessage = document.querySelector("#scores-message");
 
+const examViews = document.querySelectorAll(".exam-admin-view");
+const examListView = document.querySelector("#exam-list-view");
+const examDetailView = document.querySelector("#exam-detail-view");
+const examEditorView = document.querySelector("#exam-editor-view");
+const examResponsesView = document.querySelector("#exam-responses-view");
 const examList = document.querySelector("#exam-list");
+const newExamButton = document.querySelector("#new-exam-button");
+
+const backDetailButton = document.querySelector("#back-detail-button");
+const detailEditButton = document.querySelector("#detail-edit-button");
+const detailResponsesButton = document.querySelector("#detail-responses-button");
+const detailExamTitle = document.querySelector("#detail-exam-title");
+const detailExamDescription = document.querySelector("#detail-exam-description");
+const detailExamStatus = document.querySelector("#detail-exam-status");
+const detailExamQuestions = document.querySelector("#detail-exam-questions");
+const detailExamResponses = document.querySelector("#detail-exam-responses");
+const detailExamBoys = document.querySelector("#detail-exam-boys");
+const detailExamGirls = document.querySelector("#detail-exam-girls");
+const detailPublicLink = document.querySelector("#detail-public-link");
+const detailCopyLinkButton = document.querySelector("#detail-copy-link-button");
+const detailOpenLink = document.querySelector("#detail-open-link");
+
+const backEditorButton = document.querySelector("#back-editor-button");
+const editorViewTitle = document.querySelector("#editor-view-title");
 const examForm = document.querySelector("#exam-form");
 const examId = document.querySelector("#exam-id");
 const examTitle = document.querySelector("#exam-title");
@@ -19,10 +42,12 @@ const examDescription = document.querySelector("#exam-description");
 const examActive = document.querySelector("#exam-active");
 const questionsEditor = document.querySelector("#questions-editor");
 const addQuestionButton = document.querySelector("#add-question-button");
-const newExamButton = document.querySelector("#new-exam-button");
 const deleteExamButton = document.querySelector("#delete-exam-button");
 const examMessage = document.querySelector("#exam-message");
 
+const backResponsesButton = document.querySelector("#back-responses-button");
+const editFromResponsesButton = document.querySelector("#edit-from-responses-button");
+const responsesExamTitle = document.querySelector("#responses-exam-title");
 const examResponsesPanel = document.querySelector("#exam-responses-panel");
 const examResponsesSubtitle = document.querySelector("#exam-responses-subtitle");
 const refreshExamResponsesButton = document.querySelector("#refresh-exam-responses-button");
@@ -32,6 +57,7 @@ const examResponseGirls = document.querySelector("#exam-response-girls");
 const examResponseAverage = document.querySelector("#exam-response-average");
 const girlsResponsesList = document.querySelector("#girls-responses-list");
 const boysResponsesList = document.querySelector("#boys-responses-list");
+
 const dialog = document.querySelector("#submission-dialog");
 const closeDialogButton = document.querySelector("#close-dialog-button");
 const detailTitle = document.querySelector("#detail-title");
@@ -41,7 +67,9 @@ const state = {
   exams: [],
   currentExam: null,
   currentExamSubmissions: [],
+  examView: "list",
 };
+
 const ADMIN_PASSWORD = "gincana123";
 const ADMIN_SESSION_KEY = "gincana_admin_session";
 
@@ -84,14 +112,114 @@ function switchTab(name) {
   tabPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `tab-${name}`));
 }
 
-async function checkSession() {
-  if (localStorage.getItem(ADMIN_SESSION_KEY) === "authenticated") {
-    showAdmin();
-    await Promise.all([loadScores(), loadExams()]);
-    resetExamForm();
+function showExamView(view) {
+  state.examView = view;
+  examViews.forEach((section) => section.classList.add("hidden"));
+  const target = {
+    list: examListView,
+    detail: examDetailView,
+    editor: examEditorView,
+    responses: examResponsesView,
+  }[view];
+  target?.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateRoute(view, id = "", replace = false) {
+  const url = new URL(window.location.href);
+  if (view === "scores") {
+    url.searchParams.delete("view");
+    url.searchParams.delete("exam");
   } else {
-    showLogin();
+    url.searchParams.set("view", view);
+    if (id) url.searchParams.set("exam", id);
+    else url.searchParams.delete("exam");
   }
+  history[replace ? "replaceState" : "pushState"]({}, "", url);
+}
+
+function currentExamById(id) {
+  return state.exams.find((exam) => String(exam.id) === String(id));
+}
+
+function setCurrentExam(id) {
+  const exam = currentExamById(id);
+  if (!exam) return false;
+  state.currentExam = JSON.parse(JSON.stringify(exam));
+  return true;
+}
+
+function navigateToExamList({ historyMode = "push" } = {}) {
+  switchTab("exams");
+  showExamView("list");
+  renderExamList();
+  if (historyMode !== "none") updateRoute("exams", "", historyMode === "replace");
+}
+
+function navigateToExamDetail(id, { historyMode = "push" } = {}) {
+  if (!setCurrentExam(id)) {
+    navigateToExamList({ historyMode: "replace" });
+    return;
+  }
+  switchTab("exams");
+  renderExamDetail();
+  showExamView("detail");
+  if (historyMode !== "none") updateRoute("exam-detail", id, historyMode === "replace");
+}
+
+function navigateToExamEditor(id = "", { historyMode = "push" } = {}) {
+  if (id) {
+    if (!setCurrentExam(id)) {
+      navigateToExamList({ historyMode: "replace" });
+      return;
+    }
+  } else {
+    resetExamForm();
+  }
+  renderExamForm();
+  setMessage(examMessage, "");
+  editorViewTitle.textContent = id ? "Editar prova" : "Nova prova";
+  switchTab("exams");
+  showExamView("editor");
+  if (historyMode !== "none") updateRoute("exam-editor", id, historyMode === "replace");
+}
+
+async function navigateToExamResponses(id, { historyMode = "push" } = {}) {
+  if (!setCurrentExam(id)) {
+    navigateToExamList({ historyMode: "replace" });
+    return;
+  }
+  switchTab("exams");
+  responsesExamTitle.textContent = state.currentExam.title;
+  showExamView("responses");
+  if (historyMode !== "none") updateRoute("exam-responses", id, historyMode === "replace");
+  await loadExamResponses(id);
+}
+
+async function applyRoute() {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get("view");
+  const id = params.get("exam") || "";
+
+  if (view === "exams") return navigateToExamList({ historyMode: "none" });
+  if (view === "exam-detail" && id) return navigateToExamDetail(id, { historyMode: "none" });
+  if (view === "exam-editor") return navigateToExamEditor(id, { historyMode: "none" });
+  if (view === "exam-responses" && id) {
+    return navigateToExamResponses(id, { historyMode: "none" });
+  }
+
+  switchTab("scores");
+}
+
+async function checkSession() {
+  if (localStorage.getItem(ADMIN_SESSION_KEY) !== "authenticated") {
+    showLogin();
+    return;
+  }
+
+  showAdmin();
+  await Promise.all([loadScores(), loadExams()]);
+  await applyRoute();
 }
 
 async function loadScores() {
@@ -119,74 +247,6 @@ async function loadExams() {
   renderExamList();
 }
 
-function resetExamForm() {
-  state.currentExam = {
-    id: "",
-    title: "",
-    description: "",
-    active: true,
-    questions: [],
-  };
-  state.currentExamSubmissions = [];
-  renderExamForm();
-  hideExamResponses();
-}
-
-function selectExam(id) {
-  const exam = state.exams.find((item) => String(item.id) === String(id));
-  if (!exam) return;
-  state.currentExam = JSON.parse(JSON.stringify(exam));
-  renderExamForm();
-  setMessage(examMessage, "");
-  loadExamResponses(exam.id);
-}
-
-function absolutePublicUrl(exam) {
-  return `${window.location.origin}${exam.publicUrl}`;
-}
-
-function renderExamList() {
-  if (!state.exams.length) {
-    examList.innerHTML = `<p class="form-message">Nenhuma prova criada ainda.</p>`;
-    return;
-  }
-
-  examList.innerHTML = state.exams
-    .map(
-      (exam) => `
-        <article class="exam-item">
-          <div>
-            <strong>${escapeHtml(exam.title)}</strong>
-            <div class="exam-meta">
-              <span class="pill ${exam.active ? "active" : "inactive"}">
-                ${exam.active ? "Ativa" : "Inativa"}
-              </span>
-              <span class="pill">${exam.questions.length} questões</span>
-              <span class="pill">${exam.submissionsCount} respostas</span>
-            </div>
-          </div>
-          <div class="exam-meta">
-            <span>Meninos: ${formatNumber(exam.totals.Meninos)}</span>
-            <span>Meninas: ${formatNumber(exam.totals.Meninas)}</span>
-          </div>
-          <div class="exam-item-actions">
-            <button type="button" class="small-button" data-action="edit-exam" data-id="${exam.id}">
-              Editar
-            </button>
-            <button type="button" class="small-button" data-action="view-responses" data-id="${exam.id}">
-              Ver respostas
-            </button>
-            <a class="small-button" href="${exam.publicUrl}" target="_blank">Abrir</a>
-            <button type="button" class="small-button" data-action="copy-link" data-id="${exam.id}">
-              Copiar link
-            </button>
-          </div>
-        </article>
-      `
-    )
-    .join("");
-}
-
 function defaultQuestion() {
   return {
     id: uid(),
@@ -199,13 +259,82 @@ function defaultQuestion() {
   };
 }
 
+function resetExamForm() {
+  state.currentExam = {
+    id: "",
+    title: "",
+    description: "",
+    active: true,
+    questions: [defaultQuestion()],
+  };
+  state.currentExamSubmissions = [];
+}
+
+function absolutePublicUrl(exam) {
+  return `${window.location.origin}${exam.publicUrl}`;
+}
+
+function renderExamList() {
+  if (!state.exams.length) {
+    examList.innerHTML = `
+      <div class="empty-state">
+        <h3>Nenhuma prova criada</h3>
+        <p>Crie a primeira prova para gerar um link público.</p>
+        <button type="button" class="primary-button" data-action="new-exam">+ Nova prova</button>
+      </div>
+    `;
+    return;
+  }
+
+  examList.innerHTML = state.exams
+    .map(
+      (exam) => `
+        <article class="exam-item">
+          <button type="button" class="exam-card-main" data-action="view-exam" data-id="${exam.id}">
+            <div class="exam-card-title-row">
+              <strong>${escapeHtml(exam.title)}</strong>
+              <span class="pill ${exam.active ? "active" : "inactive"}">
+                ${exam.active ? "Ativa" : "Inativa"}
+              </span>
+            </div>
+            <div class="exam-meta">
+              <span>${exam.questions.length} ${exam.questions.length === 1 ? "pergunta" : "perguntas"}</span>
+              <span>${exam.submissionsCount} ${exam.submissionsCount === 1 ? "resposta" : "respostas"}</span>
+            </div>
+          </button>
+          <div class="exam-item-actions">
+            <button type="button" class="small-button" data-action="edit-exam" data-id="${exam.id}">Editar prova</button>
+            <button type="button" class="small-button" data-action="view-responses" data-id="${exam.id}">Ver respostas</button>
+            <button type="button" class="small-button" data-action="copy-link" data-id="${exam.id}">Copiar link</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderExamDetail() {
+  const exam = state.currentExam;
+  if (!exam) return;
+  detailExamTitle.textContent = exam.title;
+  detailExamDescription.textContent = exam.description || "Sem descrição.";
+  detailExamStatus.textContent = exam.active ? "Ativa" : "Inativa";
+  detailExamStatus.className = `pill ${exam.active ? "active" : "inactive"}`;
+  detailExamQuestions.textContent = String(exam.questions.length);
+  detailExamResponses.textContent = String(exam.submissionsCount || 0);
+  detailExamBoys.textContent = formatNumber(exam.totals.Meninos);
+  detailExamGirls.textContent = formatNumber(exam.totals.Meninas);
+  detailPublicLink.value = absolutePublicUrl(exam);
+  detailOpenLink.href = exam.publicUrl;
+}
+
 function normalizeForEditor(question) {
   const copy = { ...question };
   if (!copy.id) copy.id = uid();
   if (!copy.type) copy.type = "single";
   if (!Array.isArray(copy.options)) copy.options = [];
-  if ((copy.type === "single" || copy.type === "multi") && copy.options.length === 0) {
-    copy.options = ["", ""];
+  if (copy.type === "single" || copy.type === "multi") {
+    while (copy.options.length < 2) copy.options.push("");
   }
   if (copy.type === "multi" && !Array.isArray(copy.correct)) copy.correct = [];
   if (copy.type !== "multi" && copy.correct == null) copy.correct = "";
@@ -227,7 +356,12 @@ function renderQuestions() {
   state.currentExam.questions = questions;
 
   if (!questions.length) {
-    questionsEditor.innerHTML = `<p class="form-message">Adicione uma questão para começar.</p>`;
+    questionsEditor.innerHTML = `
+      <div class="empty-state compact">
+        <h3>Esta prova ainda não tem perguntas</h3>
+        <p>Adicione uma pergunta para começar.</p>
+      </div>
+    `;
     return;
   }
 
@@ -242,6 +376,18 @@ function renderQuestion(question, index) {
 
   return `
     <section class="question-editor" data-question-index="${index}" data-question-id="${escapeHtml(question.id)}">
+      <div class="question-editor-heading">
+        <div>
+          <span class="question-index">Pergunta ${index + 1}</span>
+          <span class="question-type-label">${question.type === "single" ? "Múltipla escolha" : question.type === "multi" ? "Múltipla seleção" : question.type === "short" ? "Texto curto" : "Texto longo"}</span>
+        </div>
+        <div class="question-order-actions">
+          <button type="button" class="small-button icon-order-button" data-action="move-question-up" aria-label="Subir pergunta ${index + 1}" title="Subir pergunta" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" class="small-button icon-order-button" data-action="move-question-down" aria-label="Descer pergunta ${index + 1}" title="Descer pergunta" ${index === state.currentExam.questions.length - 1 ? "disabled" : ""}>↓</button>
+          <button type="button" class="danger-button question-remove-button" data-action="remove-question">Remover</button>
+        </div>
+      </div>
+
       <div class="question-grid">
         <label>
           Tipo
@@ -253,24 +399,23 @@ function renderQuestion(question, index) {
           </select>
         </label>
         <label>
-          Pontuação
+          Pontos
           <input data-field="points" type="number" min="0" step="0.5" value="${escapeHtml(question.points ?? 0)}" />
         </label>
-              <button type="button" class="danger-button" data-action="remove-question">Remover</button>
       </div>
 
       <label>
-        Pergunta
+        Texto da pergunta
         <textarea data-field="prompt" rows="3">${escapeHtml(question.prompt || "")}</textarea>
       </label>
 
       <div class="image-row">
         <label>
-          Imagem opcional por URL ou base64
-          <input data-field="image" type="text" value="${escapeHtml(question.image || "")}" />
+          Imagem por URL (opcional)
+          <input data-field="image" type="url" value="${escapeHtml(question.image || "")}" placeholder="https://..." />
         </label>
         <label>
-          Escolher imagem do computador
+          Ou escolher do computador
           <input data-field="image-file" type="file" accept="image/*" />
         </label>
       </div>
@@ -280,18 +425,25 @@ function renderQuestion(question, index) {
         isChoice
           ? `
             <div class="options-editor">
-              <h3>Alternativas e resposta correta</h3>
-              ${question.options.map((option, optionIndex) => renderOption(question, index, option, optionIndex)).join("")}
-              <button type="button" class="secondary-button" data-action="add-option">+ Adicionar alternativa</button>
+              <div class="options-heading">
+                <div>
+                  <h3>Alternativas</h3>
+                  <p>${question.type === "single" ? "Marque uma alternativa correta." : "Marque todas as alternativas corretas."}</p>
+                </div>
+                <button type="button" class="secondary-button" data-action="add-option">+ Adicionar alternativa</button>
+              </div>
+              <div class="option-list">
+                ${question.options.map((option, optionIndex) => renderOption(question, option, optionIndex)).join("")}
+              </div>
             </div>
           `
-          : `<p class="form-message">Questões de texto ficam salvas para revisão manual.</p>`
+          : `<p class="text-question-note">A resposta será salva para revisão manual.</p>`
       }
     </section>
   `;
 }
 
-function renderOption(question, questionIndex, option, optionIndex) {
+function renderOption(question, option, optionIndex) {
   const correctName = `correct-${question.id}`;
   const checked =
     question.type === "single"
@@ -301,12 +453,12 @@ function renderOption(question, questionIndex, option, optionIndex) {
 
   return `
     <div class="option-row" data-option-index="${optionIndex}">
-      <input data-field="option" type="text" value="${escapeHtml(option)}" placeholder="Alternativa ${optionIndex + 1}" />
-      <label class="inline-check">
+      <label class="correct-choice">
         <input data-field="correct" name="${correctName}" type="${inputType}" value="${optionIndex}" ${checked ? "checked" : ""} />
-        Correta
+        <span>Correta</span>
       </label>
-      <button type="button" class="small-button" data-action="remove-option">Remover</button>
+      <input data-field="option" type="text" value="${escapeHtml(option)}" placeholder="Alternativa ${optionIndex + 1}" aria-label="Texto da alternativa ${optionIndex + 1}" />
+      <button type="button" class="small-button option-remove-button" data-action="remove-option" aria-label="Remover alternativa ${optionIndex + 1}">Remover</button>
     </div>
   `;
 }
@@ -315,35 +467,24 @@ function collectExamForm() {
   const questions = [...questionsEditor.querySelectorAll(".question-editor")].map((card) => {
     const type = card.querySelector('[data-field="type"]').value;
     const rows = [...card.querySelectorAll(".option-row")];
-    const options = [];
-    const indexMap = new Map();
-
-    rows.forEach((row) => {
-      const oldIndex = row.dataset.optionIndex;
-      const value = row.querySelector('[data-field="option"]').value.trim();
-      if (value) {
-        indexMap.set(String(oldIndex), String(options.length));
-        options.push(value);
-      }
-    });
+    const options = rows.map((row) => row.querySelector('[data-field="option"]').value);
 
     let correct = "";
     if (type === "single") {
       const selected = rows.find((row) => row.querySelector('[data-field="correct"]')?.checked);
-      correct = selected ? indexMap.get(String(selected.dataset.optionIndex)) || "" : "";
+      correct = selected?.dataset.optionIndex ?? "";
     } else if (type === "multi") {
       correct = rows
         .filter((row) => row.querySelector('[data-field="correct"]')?.checked)
-        .map((row) => indexMap.get(String(row.dataset.optionIndex)))
-        .filter(Boolean);
+        .map((row) => String(row.dataset.optionIndex));
     }
 
     return {
       id: card.dataset.questionId || uid(),
       type,
-      prompt: card.querySelector('[data-field="prompt"]').value.trim(),
+      prompt: card.querySelector('[data-field="prompt"]').value,
       points: Number(card.querySelector('[data-field="points"]').value || 0),
-      image: card.querySelector('[data-field="image"]').value.trim(),
+      image: card.querySelector('[data-field="image"]').value,
       options,
       correct,
     };
@@ -351,8 +492,8 @@ function collectExamForm() {
 
   state.currentExam = {
     id: examId.value,
-    title: examTitle.value.trim(),
-    description: examDescription.value.trim(),
+    title: examTitle.value,
+    description: examDescription.value,
     active: examActive.checked,
     questions,
   };
@@ -360,11 +501,52 @@ function collectExamForm() {
 
 function ensureChoiceQuestion(question) {
   if (question.type === "single" || question.type === "multi") {
-    if (!question.options.length) question.options = ["", ""];
+    while (question.options.length < 2) question.options.push("");
     if (question.type === "multi" && !Array.isArray(question.correct)) question.correct = [];
     if (question.type === "single" && Array.isArray(question.correct)) question.correct = "";
   }
   return question;
+}
+
+function sanitizeQuestion(question, questionIndex) {
+  const optionMap = new Map();
+  const options = [];
+  (question.options || []).forEach((option, oldIndex) => {
+    const value = String(option || "").trim();
+    if (value) {
+      optionMap.set(String(oldIndex), String(options.length));
+      options.push(value);
+    }
+  });
+
+  let correct = "";
+  if (question.type === "single") {
+    correct = optionMap.get(String(question.correct)) ?? "";
+  } else if (question.type === "multi") {
+    correct = (Array.isArray(question.correct) ? question.correct : [])
+      .map((value) => optionMap.get(String(value)))
+      .filter((value) => value != null);
+  }
+
+  const clean = {
+    ...question,
+    prompt: question.prompt.trim(),
+    image: question.image.trim(),
+    options,
+    correct,
+  };
+
+  if (!clean.prompt) throw new Error(`Escreva o texto da pergunta ${questionIndex + 1}.`);
+  if ((clean.type === "single" || clean.type === "multi") && clean.options.length < 2) {
+    throw new Error(`Adicione pelo menos duas alternativas na pergunta ${questionIndex + 1}.`);
+  }
+  if (clean.type === "single" && clean.correct === "") {
+    throw new Error(`Marque a resposta correta da pergunta ${questionIndex + 1}.`);
+  }
+  if (clean.type === "multi" && clean.correct.length === 0) {
+    throw new Error(`Marque ao menos uma resposta correta na pergunta ${questionIndex + 1}.`);
+  }
+  return clean;
 }
 
 function handleQuestionClick(event) {
@@ -389,13 +571,30 @@ function handleQuestionClick(event) {
     const question = state.currentExam.questions[questionIndex];
     question.options.splice(optionIndex, 1);
     if (question.type === "single") {
-      question.correct = "";
+      if (question.correct !== "") {
+        const selected = Number(question.correct);
+        question.correct = selected === optionIndex ? "" : String(selected > optionIndex ? selected - 1 : selected);
+      }
     } else if (question.type === "multi") {
       question.correct = question.correct
         .map(Number)
         .filter((value) => value !== optionIndex)
         .map((value) => String(value > optionIndex ? value - 1 : value));
     }
+  }
+
+  if (action === "move-question-up" && questionIndex > 0) {
+    [state.currentExam.questions[questionIndex - 1], state.currentExam.questions[questionIndex]] = [
+      state.currentExam.questions[questionIndex],
+      state.currentExam.questions[questionIndex - 1],
+    ];
+  }
+
+  if (action === "move-question-down" && questionIndex < state.currentExam.questions.length - 1) {
+    [state.currentExam.questions[questionIndex + 1], state.currentExam.questions[questionIndex]] = [
+      state.currentExam.questions[questionIndex],
+      state.currentExam.questions[questionIndex + 1],
+    ];
   }
 
   renderQuestions();
@@ -416,7 +615,7 @@ function handleQuestionChange(event) {
     const imageInput = card.querySelector('[data-field="image"]');
     const reader = new FileReader();
     reader.onload = () => {
-      // Futuro: trocar data URL por upload para uma pasta /uploads quando houver muitas imagens.
+      // Futuro: mover imagens para o Supabase Storage quando o volume crescer.
       imageInput.value = reader.result;
       collectExamForm();
       renderQuestions();
@@ -432,17 +631,14 @@ async function saveExam(event) {
 
   try {
     const payload = {
-      title: state.currentExam.title,
-      description: state.currentExam.description,
+      title: state.currentExam.title.trim(),
+      description: state.currentExam.description.trim(),
       active: state.currentExam.active,
-      questions: state.currentExam.questions,
+      questions: state.currentExam.questions.map(sanitizeQuestion),
     };
-    const id = state.currentExam.id;
-    const savedExam = await GincanaDB.saveExam({ id, ...payload });
+    const savedExam = await GincanaDB.saveExam({ id: state.currentExam.id, ...payload });
     await loadExams();
-    const saved = state.exams.find((exam) => String(exam.id) === String(savedExam.id));
-    if (saved) selectExam(saved.id);
-    setMessage(examMessage, "Prova salva. Link público gerado na lista ao lado.", "ok");
+    navigateToExamDetail(savedExam.id);
   } catch (error) {
     setMessage(examMessage, error.message, "error");
   }
@@ -457,37 +653,28 @@ async function deleteCurrentExam() {
   try {
     await GincanaDB.deleteExam(id);
     await loadExams();
-    resetExamForm();
-    setMessage(examMessage, "Prova apagada.", "ok");
+    navigateToExamList();
   } catch (error) {
     setMessage(examMessage, error.message, "error");
   }
 }
 
-function hideExamResponses() {
-  examResponsesPanel.classList.add("hidden");
-  examResponsesSubtitle.textContent = "Selecione uma prova para ver os envios.";
+function resetResponseSummary() {
+  examResponsesSubtitle.textContent = "Carregando respostas...";
   examResponseTotal.textContent = "0";
   examResponseBoys.textContent = "0";
   examResponseGirls.textContent = "0";
   examResponseAverage.textContent = "0";
-  girlsResponsesList.innerHTML = "";
-  boysResponsesList.innerHTML = "";
-}
-
-async function loadExamResponses(examId = state.currentExam?.id) {
-  if (!examId) {
-    hideExamResponses();
-    return;
-  }
-
-  examResponsesPanel.classList.remove("hidden");
-  examResponsesSubtitle.textContent = "Carregando respostas...";
   girlsResponsesList.innerHTML = `<p class="form-message">Carregando...</p>`;
   boysResponsesList.innerHTML = `<p class="form-message">Carregando...</p>`;
+}
+
+async function loadExamResponses(examIdValue = state.currentExam?.id) {
+  if (!examIdValue) return;
+  resetResponseSummary();
 
   try {
-    state.currentExamSubmissions = await GincanaDB.listSubmissions(examId);
+    state.currentExamSubmissions = await GincanaDB.listSubmissions(examIdValue);
     renderExamResponses(state.currentExamSubmissions);
   } catch (error) {
     examResponsesSubtitle.textContent = error.message;
@@ -507,9 +694,15 @@ function renderExamResponses(submissions) {
     .reduce((sum, submission) => sum + Number(submission.autoScore || 0), 0);
   const average = total ? (boysTotal + girlsTotal) / total : 0;
 
-  examResponsesSubtitle.textContent = exam
-    ? `${exam.title} • ${total} ${total === 1 ? "resposta enviada" : "respostas enviadas"}`
-    : `${total} respostas enviadas`;
+  exam.submissionsCount = total;
+  exam.totals = { Meninos: boysTotal, Meninas: girlsTotal };
+  const storedExam = currentExamById(exam.id);
+  if (storedExam) {
+    storedExam.submissionsCount = total;
+    storedExam.totals = { ...exam.totals };
+  }
+
+  examResponsesSubtitle.textContent = `${total} ${total === 1 ? "resposta enviada" : "respostas enviadas"}`;
   examResponseTotal.textContent = String(total);
   examResponseBoys.textContent = formatNumber(boysTotal);
   examResponseGirls.textContent = formatNumber(girlsTotal);
@@ -541,9 +734,7 @@ function renderGroupResponses(container, group, submissions) {
           <div class="participant-score-row">
             <span>Pontos: <strong>${formatNumber(submission.autoScore)}</strong></span>
             <span>Saídas: <strong>${submission.focusLosses}</strong></span>
-            <button type="button" class="small-button" data-action="open-submission" data-id="${submission.id}">
-              Ver detalhes
-            </button>
+            <button type="button" class="small-button" data-action="open-submission" data-id="${submission.id}">Ver detalhes</button>
           </div>
         </article>
       `
@@ -598,11 +789,7 @@ async function openSubmission(id) {
               <p><strong>Pergunta ${index + 1}</strong></p>
               <p>${escapeHtml(item.prompt || "Pergunta")}</p>
               <p>Resposta enviada: ${escapeHtml(answerText(item.answer, item))}</p>
-              ${
-                hasAutomaticCorrectAnswer(item)
-                  ? `<p>Resposta correta: ${escapeHtml(correctText(item))}</p>`
-                  : ""
-              }
+              ${hasAutomaticCorrectAnswer(item) ? `<p>Resposta correta: ${escapeHtml(correctText(item))}</p>` : ""}
               <p>Pontos ganhos: ${formatNumber(item.awarded)}</p>
               <p>Pontos possíveis: ${formatNumber(item.points)}</p>
             </article>
@@ -612,6 +799,15 @@ async function openSubmission(id) {
     </div>
   `;
   dialog.showModal();
+}
+
+async function copyExamLink(exam, button) {
+  await navigator.clipboard.writeText(absolutePublicUrl(exam));
+  const original = button.textContent;
+  button.textContent = "Copiado";
+  setTimeout(() => {
+    button.textContent = original;
+  }, 1500);
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -627,7 +823,7 @@ loginForm.addEventListener("submit", async (event) => {
   showAdmin();
   try {
     await Promise.all([loadScores(), loadExams()]);
-    resetExamForm();
+    await applyRoute();
   } catch (error) {
     setMessage(scoresMessage, error.message, "error");
   }
@@ -638,17 +834,33 @@ logoutButton.addEventListener("click", () => {
   showLogin();
 });
 
-tabs.forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
-scoresForm.addEventListener("submit", saveScores);
-newExamButton.addEventListener("click", () => {
-  resetExamForm();
-  setMessage(examMessage, "");
+tabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    if (tab.dataset.tab === "scores") {
+      switchTab("scores");
+      updateRoute("scores");
+    } else {
+      navigateToExamList();
+    }
+  });
 });
+
+scoresForm.addEventListener("submit", saveScores);
+newExamButton.addEventListener("click", () => navigateToExamEditor());
+backDetailButton.addEventListener("click", () => navigateToExamList());
+backEditorButton.addEventListener("click", () => navigateToExamList());
+backResponsesButton.addEventListener("click", () => navigateToExamDetail(state.currentExam.id));
+detailEditButton.addEventListener("click", () => navigateToExamEditor(state.currentExam.id));
+detailResponsesButton.addEventListener("click", () => navigateToExamResponses(state.currentExam.id));
+editFromResponsesButton.addEventListener("click", () => navigateToExamEditor(state.currentExam.id));
+detailCopyLinkButton.addEventListener("click", () => copyExamLink(state.currentExam, detailCopyLinkButton));
+
 addQuestionButton.addEventListener("click", () => {
   collectExamForm();
   state.currentExam.questions.push(defaultQuestion());
   renderQuestions();
 });
+
 questionsEditor.addEventListener("click", handleQuestionClick);
 questionsEditor.addEventListener("change", handleQuestionChange);
 examForm.addEventListener("submit", saveExam);
@@ -657,30 +869,17 @@ deleteExamButton.addEventListener("click", deleteCurrentExam);
 examList.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
-  const exam = state.exams.find((item) => String(item.id) === String(target.dataset.id));
+  if (target.dataset.action === "new-exam") return navigateToExamEditor();
+
+  const exam = currentExamById(target.dataset.id);
   if (!exam) return;
-
-  if (target.dataset.action === "edit-exam") {
-    selectExam(exam.id);
-  }
-
-  if (target.dataset.action === "view-responses") {
-    selectExam(exam.id);
-    switchTab("exams");
-    examResponsesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  if (target.dataset.action === "copy-link") {
-    await navigator.clipboard.writeText(absolutePublicUrl(exam));
-    target.textContent = "Copiado";
-    setTimeout(() => {
-      target.textContent = "Copiar link";
-    }, 1500);
-  }
+  if (target.dataset.action === "view-exam") navigateToExamDetail(exam.id);
+  if (target.dataset.action === "edit-exam") navigateToExamEditor(exam.id);
+  if (target.dataset.action === "view-responses") await navigateToExamResponses(exam.id);
+  if (target.dataset.action === "copy-link") await copyExamLink(exam, target);
 });
 
 refreshExamResponsesButton.addEventListener("click", () => loadExamResponses());
-
 examResponsesPanel.addEventListener("click", (event) => {
   const button = event.target.closest('[data-action="open-submission"]');
   if (button) {
@@ -691,5 +890,8 @@ examResponsesPanel.addEventListener("click", (event) => {
 });
 
 closeDialogButton.addEventListener("click", () => dialog.close());
+window.addEventListener("popstate", () => {
+  if (localStorage.getItem(ADMIN_SESSION_KEY) === "authenticated") applyRoute();
+});
 
 checkSession().catch(() => showLogin());
